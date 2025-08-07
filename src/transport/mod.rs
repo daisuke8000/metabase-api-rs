@@ -1,5 +1,10 @@
-//! Transport layer - HTTP communication
+//! Transport layer for HTTP communication
 //!
-//! This module handles HTTP communication with the Metabase API
+//! This module handles HTTP requests, responses, and retry logic
 
-// Placeholder for transport implementation
+pub mod http;
+pub mod retry;
+
+// Re-export commonly used types
+pub use http::{HttpClient, HttpClientBuilder};
+pub use retry::{retry_with, RetryPolicy};

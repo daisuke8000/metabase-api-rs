@@ -8,9 +8,9 @@ use thiserror::Error;
 /// The main error type for metabase-api-rs operations
 #[derive(Debug, Error)]
 pub enum Error {
-    /// HTTP request failed
-    #[error("HTTP request failed: {0}")]
-    Http(String),
+    /// HTTP request failed with status code
+    #[error("HTTP request failed with status {status}: {message}")]
+    Http { status: u16, message: String },
 
     /// JSON parsing failed
     #[error("JSON parsing failed: {0}")]
@@ -18,7 +18,19 @@ pub enum Error {
 
     /// Authentication failed
     #[error("Authentication failed: {0}")]
-    Auth(String),
+    Authentication(String),
+
+    /// Validation error
+    #[error("Validation error: {0}")]
+    Validation(String),
+
+    /// Configuration error
+    #[error("Configuration error: {0}")]
+    Config(String),
+
+    /// Session error
+    #[error("Session error: {0}")]
+    Session(String),
 
     /// Invalid parameter provided
     #[error("Invalid parameter: {0}")]
@@ -30,7 +42,7 @@ pub enum Error {
 
     /// Rate limit exceeded
     #[error("Rate limited")]
-    RateLimited,
+    RateLimited { retry_after: Option<u32> },
 
     /// Server error
     #[error("Server error: {0}")]
@@ -68,17 +80,26 @@ impl From<reqwest::Error> for Error {
         } else if err.is_status() {
             if let Some(status) = err.status() {
                 match status.as_u16() {
-                    401 | 403 => Error::Auth(format!("Authentication error: {}", status)),
+                    401 | 403 => Error::Authentication(format!("Authentication error: {}", status)),
                     404 => Error::NotFound(format!("Resource not found: {}", status)),
-                    429 => Error::RateLimited,
+                    429 => Error::RateLimited { retry_after: None },
                     500..=599 => Error::Server(format!("Server error: {}", status)),
-                    _ => Error::Http(format!("HTTP error: {}", status)),
+                    code => Error::Http {
+                        status: code,
+                        message: format!("HTTP error: {}", status),
+                    },
                 }
             } else {
-                Error::Http(err.to_string())
+                Error::Http {
+                    status: 0,
+                    message: err.to_string(),
+                }
             }
         } else {
-            Error::Http(err.to_string())
+            Error::Http {
+                status: 0,
+                message: err.to_string(),
+            }
         }
     }
 }
@@ -97,13 +118,20 @@ mod tests {
     #[test]
     fn test_error_http_variant() {
         // Arrange
-        let msg = "Connection refused".to_string();
+        let status = 400;
+        let msg = "Bad Request".to_string();
 
         // Act
-        let error = Error::Http(msg.clone());
+        let error = Error::Http {
+            status,
+            message: msg.clone(),
+        };
 
         // Assert
-        assert_eq!(error.to_string(), format!("HTTP request failed: {}", msg));
+        assert_eq!(
+            error.to_string(),
+            format!("HTTP request failed with status {}: {}", status, msg)
+        );
     }
 
     #[test]
@@ -124,7 +152,7 @@ mod tests {
         let msg = "Invalid credentials".to_string();
 
         // Act
-        let error = Error::Auth(msg.clone());
+        let error = Error::Authentication(msg.clone());
 
         // Assert
         assert_eq!(error.to_string(), format!("Authentication failed: {}", msg));
@@ -145,7 +173,7 @@ mod tests {
     #[test]
     fn test_error_rate_limited() {
         // Act
-        let error = Error::RateLimited;
+        let error = Error::RateLimited { retry_after: None };
 
         // Assert
         assert_eq!(error.to_string(), "Rate limited");
