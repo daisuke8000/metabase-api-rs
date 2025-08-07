@@ -1,0 +1,31 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.test
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+/target/doc/
+
+# Cargo
+Cargo.lock
+
+# docs
+docs
+.claude
+.serena
