@@ -13,8 +13,8 @@ pub mod transport;
 pub use api::builder::ClientBuilder;
 pub use api::client::MetabaseClient;
 pub use core::error::{Error, Result};
-// Models will be re-exported when implemented
-// pub use core::models::*;
+// Re-export models
+pub use core::models;
 
 // Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
