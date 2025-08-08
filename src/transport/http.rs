@@ -140,6 +140,7 @@ pub struct HttpClientBuilder {
     base_url: String,
     timeout: Duration,
     headers: Vec<(String, String)>,
+    user_agent: Option<String>,
 }
 
 impl HttpClientBuilder {
@@ -149,6 +150,7 @@ impl HttpClientBuilder {
             base_url: base_url.into(),
             timeout: Duration::from_secs(30),
             headers: Vec::new(),
+            user_agent: None,
         }
     }
 
@@ -164,9 +166,20 @@ impl HttpClientBuilder {
         self
     }
 
+    /// Set the user agent
+    pub fn user_agent(mut self, user_agent: impl Into<String>) -> Self {
+        self.user_agent = Some(user_agent.into());
+        self
+    }
+
     /// Build the HTTP client
     pub fn build(self) -> Result<HttpClient> {
         let mut client_builder = Client::builder().cookie_store(true).timeout(self.timeout);
+
+        // Set user agent if provided
+        if let Some(ua) = self.user_agent {
+            client_builder = client_builder.user_agent(ua);
+        }
 
         // Add custom headers
         if !self.headers.is_empty() {
