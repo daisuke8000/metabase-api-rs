@@ -705,11 +705,7 @@ impl MetabaseClient {
     // ==================== SQL Convenience Methods ====================
 
     /// Execute a simple SQL query
-    pub async fn execute_sql(
-        &self,
-        database_id: MetabaseId,
-        sql: &str,
-    ) -> Result<QueryResult> {
+    pub async fn execute_sql(&self, database_id: MetabaseId, sql: &str) -> Result<QueryResult> {
         let native_query = NativeQuery::new(sql);
         self.execute_native_query(database_id, native_query).await
     }

@@ -71,7 +71,7 @@ pub struct QueryParameter {
 pub struct TemplateTag {
     /// Unique identifier for the tag
     pub id: String,
-    
+
     /// Tag name
     pub name: String,
 
@@ -248,12 +248,12 @@ impl NativeQuery {
             collection: None,
         }
     }
-    
+
     /// Creates a new NativeQuery builder
     pub fn builder(sql: impl Into<String>) -> NativeQueryBuilder {
         NativeQueryBuilder::new(sql)
     }
-    
+
     /// Add a parameter to the query
     pub fn with_param(mut self, name: &str, value: Value) -> Self {
         let tag = TemplateTag {
@@ -265,7 +265,8 @@ impl NativeQuery {
                 Value::Number(_) => "number",
                 Value::Bool(_) => "text",
                 _ => "text",
-            }.to_string(),
+            }
+            .to_string(),
             required: false,
             default: Some(value),
         };
@@ -347,7 +348,7 @@ impl NativeQueryBuilder {
             collection: None,
         }
     }
-    
+
     /// Adds a generic parameter
     pub fn add_param(mut self, name: &str, param_type: &str, value: Value) -> Self {
         let tag = TemplateTag {
@@ -361,28 +362,28 @@ impl NativeQueryBuilder {
         self.template_tags.insert(name.to_string(), tag);
         self
     }
-    
+
     /// Adds a text parameter
     pub fn add_text_param(self, name: &str, value: &str) -> Self {
         self.add_param(name, "text", Value::String(value.to_string()))
     }
-    
+
     /// Adds a number parameter
     pub fn add_number_param(self, name: &str, value: f64) -> Self {
         self.add_param(name, "number", serde_json::json!(value))
     }
-    
+
     /// Adds a date parameter
     pub fn add_date_param(self, name: &str, value: &str) -> Self {
         self.add_param(name, "date", Value::String(value.to_string()))
     }
-    
+
     /// Sets the collection
     pub fn collection(mut self, collection: impl Into<String>) -> Self {
         self.collection = Some(collection.into());
         self
     }
-    
+
     /// Builds the NativeQuery
     pub fn build(self) -> NativeQuery {
         NativeQuery {
@@ -424,7 +425,7 @@ mod tests {
                 default: None,
             },
         );
-        
+
         let native = NativeQuery {
             query: "SELECT * FROM orders WHERE created_at > {{date}}".to_string(),
             template_tags,
@@ -435,17 +436,23 @@ mod tests {
         assert!(native.template_tags.contains_key("date"));
         assert!(native.template_tags["date"].required);
     }
-    
+
     #[test]
     fn test_native_query_builder() {
         let query = NativeQuery::builder("SELECT * FROM orders WHERE status = {{status}}")
             .add_text_param("status", "completed")
             .build();
-        
-        assert_eq!(query.query, "SELECT * FROM orders WHERE status = {{status}}");
+
+        assert_eq!(
+            query.query,
+            "SELECT * FROM orders WHERE status = {{status}}"
+        );
         assert!(query.template_tags.contains_key("status"));
         assert_eq!(query.template_tags["status"].tag_type, "text");
-        assert_eq!(query.template_tags["status"].default, Some(json!("completed")));
+        assert_eq!(
+            query.template_tags["status"].default,
+            Some(json!("completed"))
+        );
     }
 
     #[test]

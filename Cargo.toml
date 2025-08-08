@@ -36,12 +36,5 @@ lru = { version = "0.12", optional = true }
 mockito = "1.2"
 tokio-test = "0.4"
 criterion = { version = "0.5", features = ["html_reports"] }
+dotenvy = "0.15"
 
-# [[example]]
-# name = "basic"
-# 
-# [[example]]
-# name = "auth"
-# 
-# [[example]]
-# name = "query"

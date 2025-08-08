@@ -1,4 +1,4 @@
-# Taskfile.yml - metabase-api-rs タスクランナー設定
+# Taskfile.yml - metabase-api-rs
 # https://taskfile.dev
 
 version: '3'
@@ -12,67 +12,86 @@ env:
   RUST_BACKTRACE: 1
 
 tasks:
-  # デフォルトタスク
+  # ========== Primary Commands ==========
+  
   default:
     desc: Show available tasks
     cmds:
       - task --list
 
-  # ========== Build Tasks ==========
+  dev:
+    desc: Development cycle (fmt → build → test)
+    cmds:
+      - task: fmt
+      - task: build
+      - task: test:unit
+
+  check:
+    desc: Run all checks (fmt, lint, test, audit)
+    cmds:
+      - task: fmt:check
+      - task: lint
+      - task: test
+      - task: audit
+      - echo "✅ All checks passed!"
+
+  check:full:
+    desc: Full check with integration tests
+    cmds:
+      - task: check
+      - task: integration:run
+      - echo "✅ Full check complete!"
+
+  watch:
+    desc: Watch for changes and run tests
+    cmds:
+      - cargo watch -x test
+
+  # ========== Build ==========
   
   build:
-    desc: Build the project in debug mode
+    desc: Build project
     cmds:
       - cargo build
-    sources:
-      - src/**/*.rs
-      - Cargo.toml
-    generates:
-      - target/debug/**
 
   build:release:
-    desc: Build the project in release mode
+    desc: Build for release
     cmds:
       - cargo build --release
-    sources:
-      - src/**/*.rs
-      - Cargo.toml
-    generates:
-      - target/release/**
 
   clean:
-    desc: Clean build artifacts
+    desc: Clean artifacts
     cmds:
       - cargo clean
 
-  # ========== Quality Check Tasks ==========
+  # ========== Code Quality ==========
   
   fmt:
-    desc: Format code with rustfmt
+    desc: Format code
     cmds:
       - cargo fmt --all
 
   fmt:check:
-    desc: Check code formatting without modifying files
+    desc: Check formatting
     cmds:
       - cargo fmt --all -- --check
 
   lint:
-    desc: Run clippy linter
+    desc: Run clippy
     cmds:
       - cargo clippy -- -D warnings
 
   lint:fix:
-    desc: Run clippy and attempt to fix issues
+    desc: Fix clippy issues
     cmds:
       - cargo clippy --fix --allow-dirty --allow-staged
 
   audit:
-    desc: Check for security vulnerabilities
+    desc: Security check
     cmds:
       - cargo audit
 
-  # ========== Test Tasks ==========
+  # ========== Testing ==========
   
   test:
     desc: Run all tests
@@ -80,266 +99,118 @@ tasks:
       - cargo test
 
   test:unit:
-    desc: Run unit tests only
+    desc: Unit tests only
     cmds:
       - cargo test --lib
 
-  test:integration:
-    desc: Run integration tests
-    cmds:
-      - cargo test --test '*'
-  
-  test:integration:setup:
-    desc: Setup integration test environment with Docker
-    cmds:
-      - ./scripts/setup-integration-tests.sh
-  
-  test:integration:full:
-    desc: Setup and run integration tests
-    cmds:
-      - task: test:integration:setup
-      - sleep 5
-      - cargo test --test '*' -- --nocapture
-  
-  test:integration:teardown:
-    desc: Stop integration test environment
-    cmds:
-      - docker-compose down -v
-
-  test:doc:
-    desc: Run documentation tests
-    cmds:
-      - cargo test --doc
-
-  test:verbose:
-    desc: Run tests with verbose output
-    cmds:
-      - cargo test -- --nocapture --test-threads=1
-
   test:single:
-    desc: "Run a single test (usage: task test:single -- test_name)"
+    desc: "Run single test (usage: task test:single -- test_name)"
     cmds:
       - cargo test {{.CLI_ARGS}}
 
   coverage:
-    desc: Generate test coverage report (requires cargo-tarpaulin)
+    desc: Generate coverage report
     cmds:
       - cargo tarpaulin --out Html --output-dir target/coverage
 
-  # ========== Documentation Tasks ==========
+  # ========== Integration Testing ==========
   
-  doc:
-    desc: Generate documentation
+  integration:run:
+    desc: Run integration tests with Docker lifecycle
     cmds:
-      - cargo doc --no-deps --open
+      - ./scripts/cleanup-docker.sh
+      - ./scripts/setup-integration-env.sh
+      - cargo test -- --ignored --nocapture
+      - ./scripts/cleanup-docker.sh
 
-  doc:check:
-    desc: Check documentation generation
+  integration:quick:
+    desc: Run integration tests (assumes Docker is running)
     cmds:
-      - cargo doc --no-deps
+      - cargo test -- --ignored --nocapture
 
-  # ========== Development Tasks ==========
-  
-  dev:
-    desc: Run development cycle (fmt, build, test)
-    cmds:
-      - task: fmt
-      - task: build
-      - task: test:unit
-
-  watch:
-    desc: Watch for changes and run tests (requires cargo-watch)
-    cmds:
-      - cargo watch -x test
-
-  watch:check:
-    desc: Watch for changes and run checks
-    cmds:
-      - cargo watch -x check -x test -x clippy
-
-  # ========== Quality Assurance Tasks ==========
-  
-  check:
-    desc: Run all quality checks (fmt, lint, test, audit)
-    cmds:
-      - task: fmt:check
-      - task: lint
-      - task: test
-      - task: audit
-      - task: doc:check
-      - echo "✅ All checks passed!"
-
-  check:commit:
-    desc: Pre-commit checks (MUST PASS before commit)
-    cmds:
-      - echo "🔍 Running pre-commit checks..."
-      - task: fmt:check
-      - task: lint
-      - task: test
-      - echo "✅ Ready to commit!"
-
-  check:pr:
-    desc: Pre-PR checks (comprehensive)
-    cmds:
-      - echo "🔍 Running comprehensive PR checks..."
-      - task: fmt:check
-      - task: lint
-      - task: test
-      - task: audit
-      - task: doc:check
-      - task: coverage
-      - echo "✅ Ready for PR!"
-
-  # ========== TDD Tasks ==========
+  # ========== TDD Workflow ==========
   
   tdd:red:
-    desc: TDD Red phase - run tests expecting failure
+    desc: TDD Red phase
     cmds:
-      - echo "🔴 TDD Red Phase - Writing failing tests..."
       - cargo test {{.CLI_ARGS}} || true
-      - echo "❌ Tests are failing as expected. Now implement the code!"
+      - echo "❌ Tests failing as expected"
 
   tdd:green:
-    desc: TDD Green phase - make tests pass
+    desc: TDD Green phase
     cmds:
-      - echo "🟢 TDD Green Phase - Making tests pass..."
       - cargo test {{.CLI_ARGS}}
-      - echo "✅ Tests are passing! Now refactor if needed."
+      - echo "✅ Tests passing!"
 
   tdd:refactor:
-    desc: TDD Refactor phase - improve code while keeping tests green
+    desc: TDD Refactor phase
     cmds:
-      - echo "🔵 TDD Refactor Phase - Improving code..."
       - task: fmt
       - task: lint:fix
       - cargo test {{.CLI_ARGS}}
-      - echo "✅ Refactoring complete! Tests still passing."
+      - echo "✅ Refactoring complete!"
 
-  # ========== Example Tasks ==========
+  # ========== Documentation ==========
   
-  example:
-    desc: "Run a specific example (usage: task example -- basic)"
+  doc:
+    desc: Generate docs
     cmds:
-      - cargo run --example {{.CLI_ARGS}}
+      - cargo doc --no-deps --open
 
-  examples:
-    desc: Build all examples
-    cmds:
-      - cargo build --examples
-
-  # ========== Benchmark Tasks ==========
-  
-  bench:
-    desc: Run benchmarks
-    cmds:
-      - cargo bench
-
-  bench:quick:
-    desc: Run quick benchmarks
-    cmds:
-      - cargo bench --bench '*' -- --quick
-
-  # ========== Utility Tasks ==========
+  # ========== Utilities ==========
   
   deps:
-    desc: Show dependency tree
+    desc: Show dependencies
     cmds:
       - cargo tree
-
-  deps:outdated:
-    desc: Check for outdated dependencies (requires cargo-outdated)
-    cmds:
-      - cargo outdated
 
   update:
     desc: Update dependencies
     cmds:
       - cargo update
 
-  install:tools:
-    desc: Install recommended development tools
+  bench:
+    desc: Run benchmarks
     cmds:
-      - echo "Installing development tools..."
-      - cargo install cargo-watch || true
-      - cargo install cargo-tarpaulin || true
-      - cargo install cargo-audit || true
-      - cargo install cargo-outdated || true
-      - cargo install cargo-edit || true
-      - echo "✅ Tools installed!"
+      - cargo bench
 
-  # ========== Task Flow Tasks ==========
-  
-  task:new:
-    desc: Create a new task directory structure
-    vars:
-      TASK_NAME: '{{.CLI_ARGS}}'
-    cmds:
-      - mkdir -p docs/tasks/{{.TASK_NAME}}
-      - 'echo "# Task: {{.TASK_NAME}}" > docs/tasks/{{.TASK_NAME}}/plan.md'
-      - 'echo "Task directory created: docs/tasks/{{.TASK_NAME}}"'
-
-  task:review:
-    desc: Show task plan for review
-    vars:
-      TASK_NAME: '{{.CLI_ARGS}}'
-    cmds:
-      - cat docs/tasks/{{.TASK_NAME}}/plan.md
-
-  # ========== Project Status Tasks ==========
+  # ========== Project Management ==========
   
   status:
-    desc: Show project status
+    desc: Project status
     cmds:
-      - echo "📊 Project Status"
-      - echo "=================="
-      - 'cargo check --quiet 2>/dev/null && echo "✅ Build: OK" || echo "❌ Build: Failed"'
-      - 'cargo fmt --all -- --check --quiet 2>/dev/null && echo "✅ Format: OK" || echo "❌ Format: Needs formatting"'
-      - 'cargo clippy --quiet 2>/dev/null && echo "✅ Lint: OK" || echo "❌ Lint: Has warnings"'
-      - 'cargo test --quiet 2>/dev/null && echo "✅ Tests: Passing" || echo "❌ Tests: Failing"'
+      - 'cargo check 2>/dev/null && echo "✅ Build: OK" || echo "❌ Build: Failed"'
+      - 'cargo fmt --check 2>/dev/null && echo "✅ Format: OK" || echo "❌ Format: Needs formatting"'
+      - 'cargo clippy 2>/dev/null && echo "✅ Lint: OK" || echo "❌ Lint: Has warnings"'
+      - 'cargo test 2>/dev/null && echo "✅ Tests: Passing" || echo "❌ Tests: Failing"'
 
-  progress:
-    desc: Show project progress
-    cmds:
-      - tail -50 docs/PROJECT_PROGRESS.md
-
-  # ========== CI/CD Simulation Tasks ==========
-  
   ci:
-    desc: Simulate CI pipeline locally
+    desc: CI simulation
     cmds:
-      - echo "🚀 Running CI pipeline simulation..."
       - task: clean
       - task: build
       - task: check
-      - echo "✅ CI pipeline passed!"
+      - echo "✅ CI passed!"
 
-  release:check:
-    desc: Check if ready for release
-    cmds:
-      - echo "🚀 Checking release readiness..."
-      - task: check:pr
-      - cargo publish --dry-run
-      - echo "✅ Ready for release!"
-
-  # ========== Help Tasks ==========
+  # ========== Docker Helpers ==========
   
-  help:
-    desc: Show detailed help
+  docker:up:
+    desc: Start Docker services
     cmds:
-      - |
-        echo "metabase-api-rs Task Runner"
-        echo "==========================="
-        echo ""
-        echo "Common workflows:"
-        echo "  task dev          - Run development cycle"
-        echo "  task check        - Run all quality checks"
-        echo "  task tdd:red      - Start TDD red phase"
-        echo "  task watch        - Watch and test on changes"
-        echo ""
-        echo "Quality checks:"
-        echo "  task fmt          - Format code"
-        echo "  task lint         - Run clippy"
-        echo "  task test         - Run tests"
-        echo "  task check:commit - Pre-commit checks"
-        echo ""
-        echo "For all tasks, run: task --list"
+      - ./scripts/cleanup-docker.sh
+      - ./scripts/setup-integration-env.sh
+
+  docker:down:
+    desc: Stop Docker services
+    cmds:
+      - ./scripts/cleanup-docker.sh
+
+  docker:logs:
+    desc: Show Docker logs
+    cmds:
+      - docker-compose logs -f
+
+  docker:clean:
+    desc: Complete Docker cleanup (removes all containers, volumes, networks)
+    cmds:
+      - ./scripts/cleanup-docker.sh

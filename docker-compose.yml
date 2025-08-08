@@ -6,9 +6,9 @@ services:
     image: postgres:15-alpine
     container_name: metabase-postgres
     environment:
-      POSTGRES_DB: metabase
-      POSTGRES_USER: metabase
-      POSTGRES_PASSWORD: metabase_password
+      POSTGRES_DB: test_metabase_db
+      POSTGRES_USER: test_metabase_user
+      POSTGRES_PASSWORD: TestMetabasePassword789!
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -16,7 +16,7 @@ services:
     networks:
       - metabase-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U metabase"]
+      test: ["CMD-SHELL", "pg_isready -U test_metabase_user"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,10 +27,10 @@ services:
     container_name: metabase-app
     environment:
       MB_DB_TYPE: postgres
-      MB_DB_DBNAME: metabase
+      MB_DB_DBNAME: test_metabase_db
       MB_DB_PORT: 5432
-      MB_DB_USER: metabase
-      MB_DB_PASS: metabase_password
+      MB_DB_USER: test_metabase_user
+      MB_DB_PASS: TestMetabasePassword789!
       MB_DB_HOST: postgres
       # Enable API access
       MB_ENABLE_PUBLIC_SHARING: "true"
@@ -57,9 +57,9 @@ services:
     image: postgres:15-alpine
     container_name: sample-database
     environment:
-      POSTGRES_DB: sample_db
-      POSTGRES_USER: sample_user
-      POSTGRES_PASSWORD: sample_password
+      POSTGRES_DB: test_sample_db
+      POSTGRES_USER: test_sample_user
+      POSTGRES_PASSWORD: TestSamplePassword456!
     volumes:
       - ./tests/fixtures/sample_data.sql:/docker-entrypoint-initdb.d/01-sample-data.sql
     ports:

@@ -1,12 +1,17 @@
 -- Sample data for integration testing
--- This creates a simple e-commerce schema with test data
+-- Creates comprehensive e-commerce schema with test data for Metabase integration tests
 
--- Create tables
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Customers table (enhanced)
 CREATE TABLE IF NOT EXISTS customers (
     id SERIAL PRIMARY KEY,
+    uuid UUID DEFAULT uuid_generate_v4(),
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -36,12 +41,12 @@ CREATE TABLE IF NOT EXISTS order_items (
 );
 
 -- Insert sample customers
-INSERT INTO customers (email, name) VALUES
-('alice@example.com', 'Alice Johnson'),
-('bob@example.com', 'Bob Smith'),
-('charlie@example.com', 'Charlie Brown'),
-('diana@example.com', 'Diana Prince'),
-('eve@example.com', 'Eve Wilson');
+INSERT INTO customers (email, first_name, last_name) VALUES
+('alice@example.com', 'Alice', 'Johnson'),
+('bob@example.com', 'Bob', 'Smith'),
+('charlie@example.com', 'Charlie', 'Brown'),
+('diana@example.com', 'Diana', 'Prince'),
+('eve@example.com', 'Eve', 'Wilson');
 
 -- Insert sample products
 INSERT INTO products (name, category, price, stock_quantity) VALUES
@@ -87,7 +92,7 @@ INSERT INTO order_items (order_id, product_id, quantity, unit_price, line_total)
 CREATE VIEW order_summary AS
 SELECT 
     o.id as order_id,
-    c.name as customer_name,
+    CONCAT(c.first_name, ' ', c.last_name) as customer_name,
     c.email as customer_email,
     o.order_date,
     o.status,
@@ -96,7 +101,7 @@ SELECT
 FROM orders o
 JOIN customers c ON o.customer_id = c.id
 LEFT JOIN order_items oi ON o.id = oi.order_id
-GROUP BY o.id, c.name, c.email, o.order_date, o.status, o.total_amount;
+GROUP BY o.id, c.first_name, c.last_name, c.email, o.order_date, o.status, o.total_amount;
 
 CREATE VIEW product_sales AS
 SELECT 
