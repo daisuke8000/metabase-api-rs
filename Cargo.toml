@@ -13,7 +13,7 @@ categories = ["api-bindings", "web-programming::http-client"]
 [features]
 default = []
 cache = ["lru"]
-performance = ["tokio/full"]
+performance = ["cache"]
 query-builder = []
 full = ["cache", "performance", "query-builder"]
 
@@ -34,6 +34,7 @@ lru = { version = "0.12", optional = true }
 [dev-dependencies]
 mockito = "1.2"
 tokio-test = "0.4"
+criterion = { version = "0.5", features = ["html_reports"] }
 
 # [[example]]
 # name = "basic"

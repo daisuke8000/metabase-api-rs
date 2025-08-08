@@ -10,17 +10,19 @@ mod tests {
         let card = Card::new(
             MetabaseId::new(1),
             "Test Card".to_string(),
+            CardType::Question,
         );
         
         assert_eq!(card.id(), MetabaseId::new(1));
         assert_eq!(card.name(), "Test Card");
+        assert_eq!(card.card_type(), &CardType::Question);
         assert!(card.description().is_none());
         assert!(card.collection_id().is_none());
     }
 
     #[test]
     fn test_card_with_builder() {
-        let card = CardBuilder::new(MetabaseId::new(2), "Builder Card".to_string())
+        let card = CardBuilder::new(MetabaseId::new(2), "Builder Card".to_string(), CardType::Model)
             .description("A test card created with builder")
             .collection_id(MetabaseId::new(10))
             .display("table")
@@ -76,7 +78,7 @@ mod tests {
 
     #[test]
     fn test_card_serialize_to_json() {
-        let card = CardBuilder::new(MetabaseId::new(456), "Test Serialization".to_string())
+        let card = CardBuilder::new(MetabaseId::new(456), "Test Serialization".to_string(), CardType::Question)
             .description("Testing serialization")
             .display("bar")
             .build();
@@ -98,7 +100,7 @@ mod tests {
         ];
         
         for display_type in display_types {
-            let card = CardBuilder::new(MetabaseId::new(1), "Test".to_string())
+            let card = CardBuilder::new(MetabaseId::new(1), "Test".to_string(), CardType::Question)
                 .display(display_type)
                 .build();
             assert_eq!(card.display(), display_type);
@@ -115,7 +117,7 @@ mod tests {
             }
         });
         
-        let card = CardBuilder::new(MetabaseId::new(1), "Native Query Card".to_string())
+        let card = CardBuilder::new(MetabaseId::new(1), "Native Query Card".to_string(), CardType::Question)
             .dataset_query(native_query.clone())
             .build();
         
@@ -130,7 +132,7 @@ mod tests {
             }
         });
         
-        let card2 = CardBuilder::new(MetabaseId::new(2), "Structured Query Card".to_string())
+        let card2 = CardBuilder::new(MetabaseId::new(2), "Structured Query Card".to_string(), CardType::Question)
             .dataset_query(structured_query.clone())
             .build();
         

@@ -17,6 +17,10 @@ impl HttpClient {
         let inner = Client::builder()
             .cookie_store(true)
             .timeout(Duration::from_secs(30))
+            // Connection pooling configuration
+            .pool_idle_timeout(Duration::from_secs(90))
+            .pool_max_idle_per_host(10)
+            .tcp_keepalive(Duration::from_secs(60))
             .build()
             .map_err(|e| Error::Network(e.to_string()))?;
 
@@ -105,6 +109,36 @@ impl HttpClient {
         }
     }
 
+    /// Make a POST request and return binary data
+    pub async fn post_binary<B>(&self, path: &str, body: &B) -> Result<Vec<u8>>
+    where
+        B: Serialize + ?Sized,
+    {
+        let url = format!("{}{}", self.base_url, path);
+        let response = self
+            .inner
+            .post(&url)
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| Error::Network(e.to_string()))?;
+
+        self.handle_binary_response(response).await
+    }
+
+    /// Make a GET request and return binary data
+    pub async fn get_binary(&self, path: &str) -> Result<Vec<u8>> {
+        let url = format!("{}{}", self.base_url, path);
+        let response = self
+            .inner
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| Error::Network(e.to_string()))?;
+
+        self.handle_binary_response(response).await
+    }
+
     /// Handle the response and convert to the expected type
     async fn handle_response<T>(&self, response: Response) -> Result<T>
     where
@@ -117,6 +151,33 @@ impl HttpClient {
                 .json::<T>()
                 .await
                 .map_err(|e| Error::Json(e.to_string()))
+        } else {
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            match status.as_u16() {
+                401 => Err(Error::Authentication(error_text)),
+                404 => Err(Error::NotFound(error_text)),
+                429 => Err(Error::RateLimited { retry_after: None }),
+                _ => Err(Error::Http {
+                    status: status.as_u16(),
+                    message: error_text,
+                }),
+            }
+        }
+    }
+
+    /// Handle binary response
+    async fn handle_binary_response(&self, response: Response) -> Result<Vec<u8>> {
+        let status = response.status();
+
+        if status.is_success() {
+            response
+                .bytes()
+                .await
+                .map(|b| b.to_vec())
+                .map_err(|e| Error::Network(e.to_string()))
         } else {
             let error_text = response
                 .text()

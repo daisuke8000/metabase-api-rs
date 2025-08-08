@@ -9,6 +9,9 @@ pub mod api;
 pub mod core;
 pub mod transport;
 
+#[cfg(feature = "cache")]
+pub mod cache;
+
 // Re-export main types for convenience
 pub use api::builder::ClientBuilder;
 pub use api::client::MetabaseClient;

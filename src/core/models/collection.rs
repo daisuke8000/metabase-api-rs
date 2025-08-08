@@ -27,6 +27,11 @@ pub struct Collection {
     created_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     updated_at: Option<DateTime<Utc>>,
+    // Additional fields from API specification
+    #[serde(skip_serializing_if = "Option::is_none")]
+    authority_level: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    collection_position: Option<i32>,
 }
 
 impl Collection {
@@ -45,6 +50,8 @@ impl Collection {
             can_write: None,
             created_at: None,
             updated_at: None,
+            authority_level: None,
+            collection_position: None,
         }
     }
 
@@ -89,6 +96,14 @@ impl Collection {
         self.can_write
     }
 
+    pub fn authority_level(&self) -> Option<&str> {
+        self.authority_level.as_deref()
+    }
+
+    pub fn collection_position(&self) -> Option<i32> {
+        self.collection_position
+    }
+
     /// Check if this is a personal collection
     pub fn is_personal(&self) -> bool {
         self.personal_owner_id.is_some()
@@ -114,6 +129,8 @@ pub struct CollectionBuilder {
     can_write: Option<bool>,
     created_at: Option<DateTime<Utc>>,
     updated_at: Option<DateTime<Utc>>,
+    authority_level: Option<String>,
+    collection_position: Option<i32>,
 }
 
 impl CollectionBuilder {
@@ -132,7 +149,14 @@ impl CollectionBuilder {
             can_write: None,
             created_at: None,
             updated_at: None,
+            authority_level: None,
+            collection_position: None,
         }
+    }
+
+    /// Create a new CollectionBuilder for creating a new collection (ID will be assigned by server)
+    pub fn new_collection(name: impl Into<String>) -> Self {
+        Self::new(MetabaseId(0), name.into())
     }
 
     pub fn description<S: Into<String>>(mut self, desc: S) -> Self {
@@ -185,6 +209,16 @@ impl CollectionBuilder {
         self
     }
 
+    pub fn authority_level<S: Into<String>>(mut self, level: S) -> Self {
+        self.authority_level = Some(level.into());
+        self
+    }
+
+    pub fn collection_position(mut self, position: i32) -> Self {
+        self.collection_position = Some(position);
+        self
+    }
+
     /// Build the Collection instance
     pub fn build(self) -> Collection {
         Collection {
@@ -200,6 +234,8 @@ impl CollectionBuilder {
             can_write: self.can_write,
             created_at: self.created_at,
             updated_at: self.updated_at,
+            authority_level: self.authority_level,
+            collection_position: self.collection_position,
         }
     }
 }
@@ -241,5 +277,17 @@ mod tests {
 
         assert_eq!(personal.personal_owner_id(), Some(42));
         assert!(personal.is_personal());
+    }
+
+    #[test]
+    fn test_collection_with_authority_level() {
+        let collection =
+            CollectionBuilder::new(MetabaseId::new(10), "Admin Collection".to_string())
+                .authority_level("admin")
+                .collection_position(1)
+                .build();
+
+        assert_eq!(collection.authority_level(), Some("admin"));
+        assert_eq!(collection.collection_position(), Some(1));
     }
 }

@@ -1,5 +1,5 @@
 use metabase_api_rs::api::{AuthManager, ClientBuilder, Credentials, MetabaseClient};
-use metabase_api_rs::core::models::User;
+use metabase_api_rs::core::models::{User, UserId};
 use std::time::Duration;
 
 #[test]
@@ -94,15 +94,22 @@ fn test_session_management() {
     // Set session
     let token = "test-session-token";
     let user = User {
-        id: 1,
+        id: UserId(1),
         email: "user@example.com".to_string(),
-        first_name: Some("Test".to_string()),
-        last_name: Some("User".to_string()),
+        first_name: "Test".to_string(),
+        last_name: "User".to_string(),
         is_superuser: false,
         is_active: true,
+        is_qbnewb: false,
         date_joined: chrono::Utc::now(),
         last_login: Some(chrono::Utc::now()),
         common_name: Some("Test User".to_string()),
+        group_ids: Vec::new(),
+        locale: None,
+        google_auth: false,
+        ldap_auth: false,
+        login_attributes: None,
+        user_group_memberships: Vec::new(),
     };
 
     auth_manager.set_session(token.to_string(), user.clone());
@@ -122,15 +129,22 @@ fn test_clear_session() {
     // Set session
     let token = "test-session-token";
     let user = User {
-        id: 1,
+        id: UserId(1),
         email: "user@example.com".to_string(),
-        first_name: Some("Test".to_string()),
-        last_name: Some("User".to_string()),
+        first_name: "Test".to_string(),
+        last_name: "User".to_string(),
         is_superuser: false,
         is_active: true,
+        is_qbnewb: false,
         date_joined: chrono::Utc::now(),
         last_login: Some(chrono::Utc::now()),
         common_name: Some("Test User".to_string()),
+        group_ids: Vec::new(),
+        locale: None,
+        google_auth: false,
+        ldap_auth: false,
+        login_attributes: None,
+        user_group_memberships: Vec::new(),
     };
 
     auth_manager.set_session(token.to_string(), user);

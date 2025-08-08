@@ -5,7 +5,30 @@ use std::fmt;
 /// Metabase ID type - a newtype wrapper around i64
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct MetabaseId(i64);
+pub struct MetabaseId(pub i64);
+
+/// User ID type - a newtype wrapper around i64
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct UserId(pub i64);
+
+impl UserId {
+    /// Create a new UserId
+    pub fn new(id: i64) -> Self {
+        Self(id)
+    }
+
+    /// Get the inner i64 value
+    pub fn as_i64(&self) -> i64 {
+        self.0
+    }
+}
+
+impl fmt::Display for UserId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl MetabaseId {
     /// Create a new MetabaseId
@@ -81,6 +104,35 @@ pub enum Visibility {
     Limited,
 }
 
+/// Export format for query results
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ExportFormat {
+    /// CSV format
+    Csv,
+    /// JSON format
+    Json,
+    /// Excel format
+    Xlsx,
+}
+
+impl ExportFormat {
+    /// Get the format as a string for API endpoints
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Csv => "csv",
+            Self::Json => "json",
+            Self::Xlsx => "xlsx",
+        }
+    }
+}
+
+impl fmt::Display for ExportFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -135,5 +187,25 @@ mod tests {
 
         let private: Visibility = serde_json::from_str("\"private\"").unwrap();
         assert_eq!(private, Visibility::Private);
+    }
+
+    #[test]
+    fn test_export_format() {
+        // Test serialization
+        let csv = ExportFormat::Csv;
+        let json_str = serde_json::to_string(&csv).unwrap();
+        assert_eq!(json_str, "\"csv\"");
+
+        // Test deserialization
+        let xlsx: ExportFormat = serde_json::from_str("\"xlsx\"").unwrap();
+        assert_eq!(xlsx, ExportFormat::Xlsx);
+
+        // Test as_str method
+        assert_eq!(ExportFormat::Csv.as_str(), "csv");
+        assert_eq!(ExportFormat::Json.as_str(), "json");
+        assert_eq!(ExportFormat::Xlsx.as_str(), "xlsx");
+
+        // Test Display trait
+        assert_eq!(format!("{}", ExportFormat::Json), "json");
     }
 }

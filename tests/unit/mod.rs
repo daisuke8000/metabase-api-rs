@@ -11,3 +11,7 @@ mod api {
     mod test_builder;
     mod test_auth;
 }
+
+// Cache tests (only when cache feature is enabled)
+#[cfg(feature = "cache")]
+mod cache_tests;

@@ -88,6 +88,23 @@ tasks:
     desc: Run integration tests
     cmds:
       - cargo test --test '*'
+  
+  test:integration:setup:
+    desc: Setup integration test environment with Docker
+    cmds:
+      - ./scripts/setup-integration-tests.sh
+  
+  test:integration:full:
+    desc: Setup and run integration tests
+    cmds:
+      - task: test:integration:setup
+      - sleep 5
+      - cargo test --test '*' -- --nocapture
+  
+  test:integration:teardown:
+    desc: Stop integration test environment
+    cmds:
+      - docker-compose down -v
 
   test:doc:
     desc: Run documentation tests

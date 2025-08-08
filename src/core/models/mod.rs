@@ -5,10 +5,23 @@
 pub mod card;
 pub mod collection;
 pub mod common;
+pub mod dashboard;
+pub mod database;
+pub mod field;
+#[cfg(feature = "query-builder")]
+pub mod mbql;
+pub mod query;
 pub mod user;
 
 // Re-export commonly used types
-pub use card::{Card, CardBuilder};
+pub use card::{Card, CardBuilder, CardType};
 pub use collection::{Collection, CollectionBuilder};
-pub use common::{MetabaseDateTime, MetabaseId, Pagination, Visibility};
-pub use user::{HealthStatus, User};
+pub use common::{ExportFormat, MetabaseDateTime, MetabaseId, Pagination, UserId, Visibility};
+pub use dashboard::{Dashboard, DashboardBuilder, DashboardCard, DashboardParameter};
+pub use database::{
+    ConnectionSource, Database, DatabaseBuilder, DatabaseMetadata, FieldMetadata, SyncResult,
+    TableMetadata,
+};
+pub use field::Field;
+pub use query::{DatasetQuery, NativeQuery, QueryResult, QueryStatus};
+pub use user::{HealthStatus, User, UserGroupMembership};

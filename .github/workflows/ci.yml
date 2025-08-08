@@ -1,0 +1,215 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Format check
+  fmt:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  # Linting
+  clippy:
+    name: Clippy Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+
+  # Unit tests
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, beta]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Run unit tests
+        run: cargo test --lib
+
+  # Integration tests
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: metabase
+          POSTGRES_PASSWORD: metabase
+          POSTGRES_DB: metabase
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      sample-postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: sampleuser
+          POSTGRES_PASSWORD: samplepass
+          POSTGRES_DB: sampledb
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      metabase:
+        image: metabase/metabase:v0.48.0
+        env:
+          MB_DB_TYPE: postgres
+          MB_DB_HOST: postgres
+          MB_DB_PORT: 5432
+          MB_DB_DBNAME: metabase
+          MB_DB_USER: metabase
+          MB_DB_PASS: metabase
+          MB_JETTY_PORT: 3000
+        ports:
+          - 3000:3000
+        options: >-
+          --health-cmd "curl -f http://localhost:3000/api/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+          --health-start-period 60s
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: Swatinem/rust-cache@v2
+      
+      - name: Wait for services
+        run: |
+          echo "Waiting for PostgreSQL..."
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 && break
+            sleep 1
+          done
+          
+          echo "Waiting for Metabase..."
+          for i in {1..60}; do
+            curl -f http://localhost:3000/api/health && break
+            sleep 2
+          done
+      
+      - name: Setup Metabase
+        run: |
+          # Get setup token
+          SETUP_TOKEN=$(curl -s http://localhost:3000/api/session/properties | grep -o '"setup-token":"[^"]*' | cut -d'"' -f4)
+          
+          if [ ! -z "$SETUP_TOKEN" ]; then
+            echo "Setting up Metabase with token: $SETUP_TOKEN"
+            
+            # Initial setup
+            curl -X POST http://localhost:3000/api/setup \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"token\": \"$SETUP_TOKEN\",
+                \"user\": {
+                  \"email\": \"admin@metabase.local\",
+                  \"password\": \"metabasepass123\",
+                  \"first_name\": \"Admin\",
+                  \"last_name\": \"User\"
+                },
+                \"prefs\": {
+                  \"site_name\": \"Test Metabase\",
+                  \"site_locale\": \"en\",
+                  \"allow_tracking\": false
+                }
+              }"
+          fi
+      
+      - name: Load sample data
+        run: |
+          PGPASSWORD=samplepass psql -h localhost -p 5433 -U sampleuser -d sampledb < tests/fixtures/sample_data.sql || true
+      
+      - name: Run integration tests
+        env:
+          METABASE_URL: http://localhost:3000
+          METABASE_TEST_EMAIL: admin@metabase.local
+          METABASE_TEST_PASSWORD: metabasepass123
+        run: cargo test --test '*'
+
+  # Documentation tests
+  test-doc:
+    name: Documentation Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: Swatinem/rust-cache@v2
+      - name: Run doc tests
+        run: cargo test --doc
+      - name: Check documentation generation
+        run: cargo doc --no-deps
+
+  # Security audit
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Allow failure for now due to known idna issue
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Run security audit
+        run: cargo audit
+
+  # Coverage (optional, only on main)
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin
+      - name: Generate coverage
+        run: cargo tarpaulin --out Xml --output-dir coverage
+      - name: Upload coverage to codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/cobertura.xml
+          fail_ci_if_error: false
+
+  # Final status check
+  ci-success:
+    name: CI Success
+    needs: [fmt, clippy, test-unit, test-integration, test-doc]
+    runs-on: ubuntu-latest
+    steps:
+      - name: CI Passed
+        run: echo "✅ All CI checks passed!"

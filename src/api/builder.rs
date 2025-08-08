@@ -5,12 +5,19 @@ use crate::core::error::{Error, Result};
 use crate::transport::HttpClientBuilder;
 use std::time::Duration;
 
+#[cfg(feature = "cache")]
+use crate::cache::CacheConfig;
+
 /// Builder for creating MetabaseClient instances
 #[derive(Debug)]
 pub struct ClientBuilder {
     base_url: String,
     timeout: Option<Duration>,
     user_agent: Option<String>,
+    #[cfg(feature = "cache")]
+    cache_config: Option<CacheConfig>,
+    #[cfg(feature = "cache")]
+    cache_enabled: Option<bool>,
 }
 
 impl ClientBuilder {
@@ -20,6 +27,10 @@ impl ClientBuilder {
             base_url: base_url.into(),
             timeout: None,
             user_agent: None,
+            #[cfg(feature = "cache")]
+            cache_config: None,
+            #[cfg(feature = "cache")]
+            cache_enabled: None,
         }
     }
 
@@ -32,6 +43,27 @@ impl ClientBuilder {
     /// Sets the user agent string
     pub fn user_agent(mut self, user_agent: impl Into<String>) -> Self {
         self.user_agent = Some(user_agent.into());
+        self
+    }
+
+    /// Sets the cache configuration
+    #[cfg(feature = "cache")]
+    pub fn cache_config(mut self, config: CacheConfig) -> Self {
+        self.cache_config = Some(config);
+        self
+    }
+
+    /// Enables or disables the cache
+    #[cfg(feature = "cache")]
+    pub fn cache_enabled(mut self, enabled: bool) -> Self {
+        self.cache_enabled = Some(enabled);
+        self
+    }
+
+    /// Disables the cache
+    #[cfg(feature = "cache")]
+    pub fn disable_cache(mut self) -> Self {
+        self.cache_enabled = Some(false);
         self
     }
 
@@ -58,10 +90,21 @@ impl ClientBuilder {
         let http_client = http_builder.build()?;
         let auth_manager = crate::api::auth::AuthManager::new();
 
+        #[cfg(feature = "cache")]
+        let cache = {
+            let mut config = self.cache_config.unwrap_or_default();
+            if let Some(enabled) = self.cache_enabled {
+                config.enabled = enabled;
+            }
+            crate::cache::CacheLayer::new(config)
+        };
+
         Ok(MetabaseClient {
             http_client,
             auth_manager,
             base_url: self.base_url,
+            #[cfg(feature = "cache")]
+            cache,
         })
     }
 }
