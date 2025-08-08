@@ -6,6 +6,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 
 use super::common::MetabaseId;
 
@@ -38,8 +39,9 @@ pub struct NativeQuery {
     pub query: String,
 
     /// Template tags for parameterized queries
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub template_tags: Vec<TemplateTag>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(rename = "template-tags")]
+    pub template_tags: HashMap<String, TemplateTag>,
 
     /// Collection of tables used in the query
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -67,10 +69,14 @@ pub struct QueryParameter {
 /// Template tag for native queries
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TemplateTag {
+    /// Unique identifier for the tag
+    pub id: String,
+    
     /// Tag name
     pub name: String,
 
     /// Display name
+    #[serde(rename = "display-name")]
     pub display_name: String,
 
     /// Tag type (e.g., "text", "number", "date")
@@ -233,6 +239,41 @@ impl DatasetQuery {
     }
 }
 
+impl NativeQuery {
+    /// Creates a new NativeQuery with the given SQL
+    pub fn new(sql: impl Into<String>) -> Self {
+        Self {
+            query: sql.into(),
+            template_tags: HashMap::new(),
+            collection: None,
+        }
+    }
+    
+    /// Creates a new NativeQuery builder
+    pub fn builder(sql: impl Into<String>) -> NativeQueryBuilder {
+        NativeQueryBuilder::new(sql)
+    }
+    
+    /// Add a parameter to the query
+    pub fn with_param(mut self, name: &str, value: Value) -> Self {
+        let tag = TemplateTag {
+            id: uuid::Uuid::new_v4().to_string(),
+            name: name.to_string(),
+            display_name: name.to_string(),
+            tag_type: match &value {
+                Value::String(_) => "text",
+                Value::Number(_) => "number",
+                Value::Bool(_) => "text",
+                _ => "text",
+            }.to_string(),
+            required: false,
+            default: Some(value),
+        };
+        self.template_tags.insert(name.to_string(), tag);
+        self
+    }
+}
+
 /// Builder for creating DatasetQuery instances
 pub struct DatasetQueryBuilder {
     database: MetabaseId,
@@ -290,6 +331,68 @@ impl DatasetQueryBuilder {
     }
 }
 
+/// Builder for creating NativeQuery instances
+pub struct NativeQueryBuilder {
+    query: String,
+    template_tags: HashMap<String, TemplateTag>,
+    collection: Option<String>,
+}
+
+impl NativeQueryBuilder {
+    /// Creates a new NativeQuery builder
+    pub fn new(sql: impl Into<String>) -> Self {
+        Self {
+            query: sql.into(),
+            template_tags: HashMap::new(),
+            collection: None,
+        }
+    }
+    
+    /// Adds a generic parameter
+    pub fn add_param(mut self, name: &str, param_type: &str, value: Value) -> Self {
+        let tag = TemplateTag {
+            id: uuid::Uuid::new_v4().to_string(),
+            name: name.to_string(),
+            display_name: name.to_string(),
+            tag_type: param_type.to_string(),
+            required: false,
+            default: Some(value),
+        };
+        self.template_tags.insert(name.to_string(), tag);
+        self
+    }
+    
+    /// Adds a text parameter
+    pub fn add_text_param(self, name: &str, value: &str) -> Self {
+        self.add_param(name, "text", Value::String(value.to_string()))
+    }
+    
+    /// Adds a number parameter
+    pub fn add_number_param(self, name: &str, value: f64) -> Self {
+        self.add_param(name, "number", serde_json::json!(value))
+    }
+    
+    /// Adds a date parameter
+    pub fn add_date_param(self, name: &str, value: &str) -> Self {
+        self.add_param(name, "date", Value::String(value.to_string()))
+    }
+    
+    /// Sets the collection
+    pub fn collection(mut self, collection: impl Into<String>) -> Self {
+        self.collection = Some(collection.into());
+        self
+    }
+    
+    /// Builds the NativeQuery
+    pub fn build(self) -> NativeQuery {
+        NativeQuery {
+            query: self.query,
+            template_tags: self.template_tags,
+            collection: self.collection,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -309,21 +412,40 @@ mod tests {
 
     #[test]
     fn test_native_query() {
-        let native = NativeQuery {
-            query: "SELECT * FROM orders WHERE created_at > {{date}}".to_string(),
-            template_tags: vec![TemplateTag {
+        let mut template_tags = HashMap::new();
+        template_tags.insert(
+            "date".to_string(),
+            TemplateTag {
+                id: "test-id".to_string(),
                 name: "date".to_string(),
                 display_name: "Date".to_string(),
                 tag_type: "date".to_string(),
                 required: true,
                 default: None,
-            }],
+            },
+        );
+        
+        let native = NativeQuery {
+            query: "SELECT * FROM orders WHERE created_at > {{date}}".to_string(),
+            template_tags,
             collection: None,
         };
 
         assert_eq!(native.template_tags.len(), 1);
-        assert_eq!(native.template_tags[0].name, "date");
-        assert!(native.template_tags[0].required);
+        assert!(native.template_tags.contains_key("date"));
+        assert!(native.template_tags["date"].required);
+    }
+    
+    #[test]
+    fn test_native_query_builder() {
+        let query = NativeQuery::builder("SELECT * FROM orders WHERE status = {{status}}")
+            .add_text_param("status", "completed")
+            .build();
+        
+        assert_eq!(query.query, "SELECT * FROM orders WHERE status = {{status}}");
+        assert!(query.template_tags.contains_key("status"));
+        assert_eq!(query.template_tags["status"].tag_type, "text");
+        assert_eq!(query.template_tags["status"].default, Some(json!("completed")));
     }
 
     #[test]

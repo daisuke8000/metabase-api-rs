@@ -13,6 +13,7 @@ use crate::core::models::{
 use crate::transport::HttpClient;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 
 #[cfg(feature = "cache")]
 use crate::cache::{cache_key, CacheConfig, CacheLayer};
@@ -699,5 +700,58 @@ impl MetabaseClient {
         let dataset_query = query.to_dataset_query(database_id);
         let path = format!("/api/dataset/{}", format.as_str());
         self.http_client.post_binary(&path, &dataset_query).await
+    }
+
+    // ==================== SQL Convenience Methods ====================
+
+    /// Execute a simple SQL query
+    pub async fn execute_sql(
+        &self,
+        database_id: MetabaseId,
+        sql: &str,
+    ) -> Result<QueryResult> {
+        let native_query = NativeQuery::new(sql);
+        self.execute_native_query(database_id, native_query).await
+    }
+
+    /// Execute a parameterized SQL query
+    pub async fn execute_sql_with_params(
+        &self,
+        database_id: MetabaseId,
+        sql: &str,
+        params: HashMap<String, Value>,
+    ) -> Result<QueryResult> {
+        let mut native_query = NativeQuery::new(sql);
+        for (name, value) in params {
+            native_query = native_query.with_param(&name, value);
+        }
+        self.execute_native_query(database_id, native_query).await
+    }
+
+    /// Export SQL query results in specified format
+    pub async fn export_sql_query(
+        &self,
+        database_id: MetabaseId,
+        sql: &str,
+        format: ExportFormat,
+    ) -> Result<Vec<u8>> {
+        if !self.is_authenticated() {
+            return Err(Error::Authentication(
+                "Authentication required to export SQL query".to_string(),
+            ));
+        }
+
+        let native_query = NativeQuery::new(sql);
+        let request = json!({
+            "database": database_id.0,
+            "type": "native",
+            "native": {
+                "query": native_query.query,
+                "template-tags": native_query.template_tags
+            }
+        });
+
+        let path = format!("/api/dataset/{}", format.as_str());
+        self.http_client.post_binary(&path, &request).await
     }
 }

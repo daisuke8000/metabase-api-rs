@@ -4,6 +4,7 @@ use metabase_api_rs::core::models::{DatasetQuery, MetabaseId, NativeQuery};
 use metabase_api_rs::{ClientBuilder, MetabaseClient};
 use mockito::{Mock, ServerGuard};
 use serde_json::json;
+use std::collections::HashMap;
 
 /// Helper to create a test client and server
 async fn setup_test_client() -> (MetabaseClient, ServerGuard) {
@@ -141,7 +142,7 @@ async fn test_execute_native_query() {
 
     let native_query = NativeQuery {
         query: "SELECT COUNT(*) as count FROM users".to_string(),
-        template_tags: vec![],
+        template_tags: HashMap::new(),
         collection: None,
     };
 
