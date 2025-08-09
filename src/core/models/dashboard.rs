@@ -6,13 +6,13 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use super::common::{MetabaseId, UserId};
+use super::common::{DashboardId, UserId};
 
 /// Represents a Metabase dashboard
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Dashboard {
     /// Unique identifier for the dashboard
-    pub id: MetabaseId,
+    pub id: Option<DashboardId>,
 
     /// Dashboard name
     pub name: String,
@@ -23,7 +23,7 @@ pub struct Dashboard {
 
     /// ID of the collection this dashboard belongs to
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub collection_id: Option<MetabaseId>,
+    pub collection_id: Option<i32>,
 
     /// Creator of the dashboard
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -46,8 +46,8 @@ pub struct Dashboard {
     pub updated_at: Option<DateTime<Utc>>,
 
     /// Whether the dashboard is archived
-    #[serde(default)]
-    pub archived: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archived: Option<bool>,
 
     // Additional fields from API specification
     /// Cache time-to-live in seconds
@@ -92,11 +92,11 @@ pub struct DashboardParameter {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DashboardCard {
     /// Unique identifier for the dashboard card
-    pub id: MetabaseId,
+    pub id: i32,
 
     /// ID of the card being displayed
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub card_id: Option<MetabaseId>,
+    pub card_id: Option<i32>,
 
     /// Position and size on the dashboard grid
     pub row: i32,
@@ -120,7 +120,7 @@ pub struct ParameterMapping {
     pub parameter_id: String,
 
     /// Card parameter ID
-    pub card_id: MetabaseId,
+    pub card_id: i32,
 
     /// Target field or variable
     pub target: serde_json::Value,
@@ -138,7 +138,7 @@ pub struct CreateDashboardRequest {
 
     /// Collection to place the dashboard in
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub collection_id: Option<MetabaseId>,
+    pub collection_id: Option<i32>,
 
     /// Initial parameters
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -158,7 +158,7 @@ pub struct UpdateDashboardRequest {
 
     /// New collection ID
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub collection_id: Option<MetabaseId>,
+    pub collection_id: Option<i32>,
 
     /// Whether to archive the dashboard
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -180,7 +180,7 @@ impl Dashboard {
 pub struct DashboardBuilder {
     name: String,
     description: Option<String>,
-    collection_id: Option<MetabaseId>,
+    collection_id: Option<i32>,
     parameters: Vec<DashboardParameter>,
     cards: Vec<DashboardCard>,
     cache_ttl: Option<i32>,
@@ -212,7 +212,7 @@ impl DashboardBuilder {
     }
 
     /// Sets the collection ID
-    pub fn collection_id(mut self, id: MetabaseId) -> Self {
+    pub fn collection_id(mut self, id: i32) -> Self {
         self.collection_id = Some(id);
         self
     }
@@ -256,7 +256,7 @@ impl DashboardBuilder {
     /// Builds the Dashboard instance
     pub fn build(self) -> Dashboard {
         Dashboard {
-            id: MetabaseId(0), // Will be set by the server
+            id: None, // Will be set by the server
             name: self.name,
             description: self.description,
             collection_id: self.collection_id,
@@ -265,7 +265,7 @@ impl DashboardBuilder {
             cards: self.cards,
             created_at: None,
             updated_at: None,
-            archived: false,
+            archived: Some(false),
             cache_ttl: self.cache_ttl,
             collection_position: self.collection_position,
             enable_embedding: self.enable_embedding,
@@ -282,7 +282,7 @@ mod tests {
     fn test_dashboard_creation() {
         let dashboard = Dashboard::builder("Sales Dashboard")
             .description("Monthly sales metrics")
-            .collection_id(MetabaseId(10))
+            .collection_id(10)
             .build();
 
         assert_eq!(dashboard.name, "Sales Dashboard");
@@ -290,8 +290,8 @@ mod tests {
             dashboard.description,
             Some("Monthly sales metrics".to_string())
         );
-        assert_eq!(dashboard.collection_id, Some(MetabaseId(10)));
-        assert!(!dashboard.archived);
+        assert_eq!(dashboard.collection_id, Some(10));
+        assert_eq!(dashboard.archived, Some(false));
         assert!(dashboard.parameters.is_empty());
         assert!(dashboard.cards.is_empty());
     }
@@ -317,8 +317,8 @@ mod tests {
     #[test]
     fn test_dashboard_card() {
         let card = DashboardCard {
-            id: MetabaseId(1),
-            card_id: Some(MetabaseId(100)),
+            id: 1,
+            card_id: Some(100),
             row: 0,
             col: 0,
             size_x: 4,
@@ -327,7 +327,7 @@ mod tests {
             parameter_mappings: Vec::new(),
         };
 
-        assert_eq!(card.card_id, Some(MetabaseId(100)));
+        assert_eq!(card.card_id, Some(100));
         assert_eq!(card.size_x, 4);
         assert_eq!(card.size_y, 3);
     }
@@ -337,13 +337,13 @@ mod tests {
         let request = CreateDashboardRequest {
             name: "New Dashboard".to_string(),
             description: Some("Test dashboard".to_string()),
-            collection_id: Some(MetabaseId(5)),
+            collection_id: Some(5),
             parameters: vec![],
         };
 
         assert_eq!(request.name, "New Dashboard");
         assert_eq!(request.description, Some("Test dashboard".to_string()));
-        assert_eq!(request.collection_id, Some(MetabaseId(5)));
+        assert_eq!(request.collection_id, Some(5));
     }
 
     #[test]

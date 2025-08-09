@@ -1,0 +1,450 @@
+//! MetabaseClient with Repository layer integration
+//!
+//! This module provides an enhanced MetabaseClient that uses the Repository layer
+//! for data access, providing better separation of concerns and testability.
+
+use crate::api::auth::{AuthManager, Credentials};
+use crate::api::CardListParams;
+use crate::core::error::{Error, Result};
+use crate::core::models::{
+    Card, Collection, Dashboard, QueryResult, User,
+};
+use crate::core::models::common::{
+    CardId, CollectionId, DashboardId, DatabaseId,
+};
+use crate::repository::{
+    RepositoryFactory, RepositoryConfig,
+    CardRepository, CollectionRepository, DashboardRepository, QueryRepository,
+    PaginationParams, FilterParams,
+};
+use crate::repository::factory::RepositorySet;
+use crate::repository::query::{Query, QueryType};
+use crate::transport::{HttpClient, HttpProvider};
+use crate::transport::http_provider_impl::HttpClientWithProvider;
+use secrecy::ExposeSecret;
+use serde::Deserialize;
+use serde_json::{json, Value};
+use std::collections::HashMap;
+use std::sync::Arc;
+
+#[cfg(feature = "cache")]
+use crate::cache::{cache_key, CacheConfig, CacheLayer};
+
+/// Enhanced MetabaseClient with Repository layer
+#[derive(Clone)]
+pub struct MetabaseClientWithRepos {
+    /// HTTP client for direct API calls
+    pub(super) http_client: HttpClient,
+    /// Authentication manager
+    pub(super) auth_manager: AuthManager,
+    /// Base URL
+    pub(super) base_url: String,
+    /// Repository instances
+    repositories: RepositorySet,
+    /// Cache layer
+    #[cfg(feature = "cache")]
+    pub(super) cache: CacheLayer,
+}
+
+impl MetabaseClientWithRepos {
+    /// Creates a new MetabaseClient with Repository layer
+    pub fn new(base_url: impl Into<String>) -> Result<Self> {
+        let base_url = base_url.into();
+
+        // Validate URL
+        if !base_url.starts_with("http://") && !base_url.starts_with("https://") {
+            return Err(Error::Config(
+                "Invalid URL: must start with http:// or https://".to_string(),
+            ));
+        }
+
+        let http_client = HttpClient::new(&base_url)?;
+        let auth_manager = AuthManager::new();
+        
+        // Create HTTP provider for repositories
+        let http_provider: Arc<dyn HttpProvider> = Arc::new(
+            HttpClientWithProvider::new(http_client.clone())
+        );
+        
+        // Create repository factory
+        let factory = RepositoryFactory::new(
+            RepositoryConfig::production(http_provider)
+        );
+        
+        // Create all repositories
+        let repositories = factory.create_all();
+
+        Ok(Self {
+            http_client,
+            auth_manager,
+            base_url,
+            repositories,
+            #[cfg(feature = "cache")]
+            cache: CacheLayer::new(CacheConfig::default()),
+        })
+    }
+
+    /// Creates a new MetabaseClient with test repositories
+    #[cfg(test)]
+    pub fn new_with_mocks(base_url: impl Into<String>) -> Result<Self> {
+        let base_url = base_url.into();
+
+        // Validate URL
+        if !base_url.starts_with("http://") && !base_url.starts_with("https://") {
+            return Err(Error::Config(
+                "Invalid URL: must start with http:// or https://".to_string(),
+            ));
+        }
+
+        let http_client = HttpClient::new(&base_url)?;
+        let auth_manager = AuthManager::new();
+        
+        // Create mock repositories
+        let factory = RepositoryFactory::new(RepositoryConfig::testing());
+        let repositories = factory.create_all();
+
+        Ok(Self {
+            http_client,
+            auth_manager,
+            base_url,
+            repositories,
+            #[cfg(feature = "cache")]
+            cache: CacheLayer::new(CacheConfig::default()),
+        })
+    }
+
+    /// Get the card repository
+    pub fn cards(&self) -> &Arc<dyn CardRepository> {
+        &self.repositories.card
+    }
+
+    /// Get the collection repository
+    pub fn collections(&self) -> &Arc<dyn CollectionRepository> {
+        &self.repositories.collection
+    }
+
+    /// Get the dashboard repository
+    pub fn dashboards(&self) -> &Arc<dyn DashboardRepository> {
+        &self.repositories.dashboard
+    }
+
+    /// Get the query repository
+    pub fn queries(&self) -> &Arc<dyn QueryRepository> {
+        &self.repositories.query
+    }
+
+    // ========== Authentication Methods ==========
+
+    /// Login with credentials
+    pub async fn login(&mut self, credentials: &Credentials) -> Result<User> {
+        let path = "/api/session";
+        
+        let payload = match credentials {
+            Credentials::EmailPassword { email, password } => {
+                json!({
+                    "username": email,
+                    "password": password.expose_secret()
+                })
+            }
+            Credentials::ApiKey { key } => {
+                json!({
+                    "api_key": key.expose_secret()
+                })
+            }
+        };
+
+        let response = self.http_client.post(path, &payload).await?;
+        let session_response: SessionResponse = response;
+        
+        // Store session
+        self.auth_manager.set_session(
+            session_response.id.clone(),
+            session_response.user.clone(),
+        );
+        
+        Ok(session_response.user)
+    }
+
+    /// Logout
+    pub async fn logout(&mut self) -> Result<()> {
+        if let Some(session_token) = self.auth_manager.session_token() {
+            let path = "/api/session";
+            self.http_client.delete(path).await?;
+            self.auth_manager.clear_session();
+        }
+        Ok(())
+    }
+
+    // ========== Card Methods (using Repository) ==========
+
+    /// Get a card by ID
+    pub async fn get_card(&self, id: CardId) -> Result<Card> {
+        self.repositories.card
+            .get(&id)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    /// List cards with optional parameters
+    pub async fn list_cards(&self, params: Option<CardListParams>) -> Result<Vec<Card>> {
+        let (pagination, filters) = if let Some(p) = params {
+            let pagination = PaginationParams::new()
+                .with_limit(p.limit.unwrap_or(50))
+                .with_offset(p.offset.unwrap_or(0));
+            
+            let filters = FilterParams::new()
+                .with_archived(p.archived.unwrap_or(false));
+            
+            (Some(pagination), Some(filters))
+        } else {
+            (None, None)
+        };
+        
+        self.repositories.card
+            .list(pagination, filters)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    /// Create a new card
+    pub async fn create_card(&self, card: &Card) -> Result<Card> {
+        self.repositories.card
+            .create(card)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    /// Update a card
+    pub async fn update_card(&self, id: CardId, card: &Card) -> Result<Card> {
+        self.repositories.card
+            .update(&id, card)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    /// Delete a card
+    pub async fn delete_card(&self, id: CardId) -> Result<()> {
+        self.repositories.card
+            .delete(&id)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    /// Archive a card
+    pub async fn archive_card(&self, id: CardId) -> Result<()> {
+        self.repositories.card
+            .archive(&id)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    /// Unarchive a card
+    pub async fn unarchive_card(&self, id: CardId) -> Result<()> {
+        self.repositories.card
+            .unarchive(&id)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    // ========== Collection Methods (using Repository) ==========
+
+    /// Get a collection by ID
+    pub async fn get_collection(&self, id: CollectionId) -> Result<Collection> {
+        self.repositories.collection
+            .get(&id)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    /// List collections
+    pub async fn list_collections(&self) -> Result<Vec<Collection>> {
+        self.repositories.collection
+            .list(None, None)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    /// Create a new collection
+    pub async fn create_collection(&self, collection: &Collection) -> Result<Collection> {
+        self.repositories.collection
+            .create(collection)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    /// Update a collection
+    pub async fn update_collection(&self, id: CollectionId, collection: &Collection) -> Result<Collection> {
+        self.repositories.collection
+            .update(&id, collection)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    /// Delete a collection
+    pub async fn delete_collection(&self, id: CollectionId) -> Result<()> {
+        self.repositories.collection
+            .delete(&id)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    // ========== Dashboard Methods (using Repository) ==========
+
+    /// Get a dashboard by ID
+    pub async fn get_dashboard(&self, id: DashboardId) -> Result<Dashboard> {
+        self.repositories.dashboard
+            .get(&id)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    /// List dashboards
+    pub async fn list_dashboards(&self) -> Result<Vec<Dashboard>> {
+        self.repositories.dashboard
+            .list(None, None)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    /// Create a new dashboard
+    pub async fn create_dashboard(&self, dashboard: &Dashboard) -> Result<Dashboard> {
+        self.repositories.dashboard
+            .create(dashboard)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    /// Update a dashboard
+    pub async fn update_dashboard(&self, id: DashboardId, dashboard: &Dashboard) -> Result<Dashboard> {
+        self.repositories.dashboard
+            .update(&id, dashboard)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    /// Delete a dashboard
+    pub async fn delete_dashboard(&self, id: DashboardId) -> Result<()> {
+        self.repositories.dashboard
+            .delete(&id)
+            .await
+            .map_err(|e| Error::from(e))
+    }
+
+    // ========== Query Execution Methods (using Repository) ==========
+
+    /// Execute a native SQL query
+    pub async fn execute_sql(
+        &self,
+        database_id: DatabaseId,
+        sql: &str,
+    ) -> Result<QueryResult> {
+        let result = self.repositories.query
+            .execute_native(database_id, sql, None)
+            .await
+            .map_err(|e| Error::from(e))?;
+        
+        // Convert from repository QueryResult to core QueryResult
+        Ok(QueryResult {
+            data: result.rows.into_iter().map(|row| {
+                row.into_iter().collect()
+            }).collect(),
+            columns: result.columns.into_iter().map(|c| c.name).collect(),
+            rows_truncated: None,
+        })
+    }
+
+    /// Execute a native SQL query with parameters
+    pub async fn execute_sql_with_params(
+        &self,
+        database_id: DatabaseId,
+        sql: &str,
+        parameters: HashMap<String, Value>,
+    ) -> Result<QueryResult> {
+        let result = self.repositories.query
+            .execute_native(database_id, sql, Some(parameters))
+            .await
+            .map_err(|e| Error::from(e))?;
+        
+        // Convert from repository QueryResult to core QueryResult
+        Ok(QueryResult {
+            data: result.rows.into_iter().map(|row| {
+                row.into_iter().collect()
+            }).collect(),
+            columns: result.columns.into_iter().map(|c| c.name).collect(),
+            rows_truncated: None,
+        })
+    }
+
+    // ========== Utility Methods ==========
+
+    /// Gets the base URL of the client
+    pub fn base_url(&self) -> &str {
+        &self.base_url
+    }
+
+    /// Checks if the client is authenticated
+    pub fn is_authenticated(&self) -> bool {
+        self.auth_manager.is_authenticated()
+    }
+
+    /// Checks if cache is enabled
+    #[cfg(feature = "cache")]
+    pub fn is_cache_enabled(&self) -> bool {
+        self.cache.is_enabled()
+    }
+
+    /// Sets the cache enabled state
+    #[cfg(feature = "cache")]
+    pub fn set_cache_enabled(&mut self, enabled: bool) {
+        self.cache.set_enabled(enabled);
+    }
+}
+
+/// Session response structure
+#[derive(Debug, Clone, Deserialize)]
+struct SessionResponse {
+    id: String,
+    #[serde(flatten)]
+    user: User,
+}
+
+// Convert RepositoryError to core Error
+impl From<crate::repository::RepositoryError> for Error {
+    fn from(err: crate::repository::RepositoryError) -> Self {
+        use crate::repository::RepositoryError;
+        match err {
+            RepositoryError::NotFound(msg) => Error::NotFound(msg),
+            RepositoryError::InvalidParams(msg) => Error::Validation(msg),
+            RepositoryError::Network(msg) => Error::Network(msg),
+            RepositoryError::Authentication(msg) => Error::Authentication(msg),
+            RepositoryError::Serialization(msg) => Error::Serialization(msg),
+            RepositoryError::Other(msg) => Error::Other(msg),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_client_with_repos_creation() {
+        let client = MetabaseClientWithRepos::new_with_mocks("https://metabase.example.com")
+            .expect("Failed to create client");
+        
+        assert_eq!(client.base_url(), "https://metabase.example.com");
+        assert!(!client.is_authenticated());
+    }
+
+    #[tokio::test]
+    async fn test_repository_access() {
+        let client = MetabaseClientWithRepos::new_with_mocks("https://metabase.example.com")
+            .expect("Failed to create client");
+        
+        // Test that we can access repositories
+        let _ = client.cards();
+        let _ = client.collections();
+        let _ = client.dashboards();
+        let _ = client.queries();
+    }
+}

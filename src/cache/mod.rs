@@ -370,7 +370,7 @@ mod tests {
 
         // Test metadata cache
         let card = Card {
-            id: MetabaseId(1),
+            id: Some(crate::core::models::common::CardId(1)),
             name: "Test Card".to_string(),
             card_type: crate::core::models::CardType::Question,
             description: Some("Test description".to_string()),
@@ -421,7 +421,7 @@ mod tests {
 
         // Test metadata cache expiration
         let card = Card {
-            id: MetabaseId(1),
+            id: Some(crate::core::models::common::CardId(1)),
             name: "Test Card".to_string(),
             card_type: crate::core::models::CardType::Question,
             description: None,

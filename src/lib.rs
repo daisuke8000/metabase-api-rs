@@ -7,6 +7,8 @@
 
 pub mod api;
 pub mod core;
+pub mod repository;
+pub mod service;
 pub mod transport;
 
 #[cfg(feature = "cache")]

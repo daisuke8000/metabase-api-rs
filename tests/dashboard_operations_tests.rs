@@ -1,6 +1,6 @@
 //! Tests for Dashboard API operations
 
-use metabase_api_rs::core::models::{Dashboard, MetabaseId};
+use metabase_api_rs::core::models::{common::DashboardId, Dashboard, MetabaseId};
 use metabase_api_rs::{ClientBuilder, MetabaseClient};
 use mockito::{Mock, ServerGuard};
 use serde_json::json;
@@ -57,7 +57,7 @@ async fn test_get_dashboard() {
     let dashboard = client.get_dashboard(MetabaseId(1)).await;
     assert!(dashboard.is_ok());
     let dashboard = dashboard.unwrap();
-    assert_eq!(dashboard.id, MetabaseId(1));
+    assert_eq!(dashboard.id, Some(DashboardId(1)));
     assert_eq!(dashboard.name, "Test Dashboard");
 }
 
@@ -143,7 +143,7 @@ async fn test_create_dashboard() {
     let created = client.create_dashboard(new_dashboard).await;
     assert!(created.is_ok());
     let created = created.unwrap();
-    assert_eq!(created.id, MetabaseId(3));
+    assert_eq!(created.id, Some(DashboardId(3)));
     assert_eq!(created.name, "New Dashboard");
 }
 

@@ -2,7 +2,7 @@
 //!
 //! This example demonstrates basic Create, Read, Update, and Delete operations
 
-use metabase_api_rs::{api::Credentials, ClientBuilder, Result};
+use metabase_api_rs::{api::Credentials, models::MetabaseId, ClientBuilder, Result};
 use serde_json::json;
 
 #[tokio::main]
@@ -38,15 +38,17 @@ async fn main() -> Result<()> {
     let collections = client.list_collections().await?;
     println!("   Found {} collections", collections.len());
     for col in collections.iter().take(3) {
-        println!("   - [{}] {}", col.id(), col.name());
+        println!("   - [{:?}] {}", col.id(), col.name());
     }
 
     // READ specific collection
     if let Some(first_collection) = collections.first() {
         println!("\n2. Reading collection details...");
-        let collection = client.get_collection(first_collection.id()).await?;
+        let collection = client
+            .get_collection(MetabaseId(first_collection.id().unwrap().0.into()))
+            .await?;
         println!("   Name: {}", collection.name());
-        println!("   ID: {}", collection.id());
+        println!("   ID: {:?}", collection.id());
         if let Some(desc) = collection.description() {
             println!("   Description: {}", desc);
         }
@@ -63,22 +65,25 @@ async fn main() -> Result<()> {
     let cards = client.list_cards(None).await?;
     println!("   Found {} cards", cards.len());
     for card in cards.iter().take(3) {
-        println!("   - [{}] {}", card.id, card.name);
+        println!("   - [{:?}] {}", card.id, card.name);
     }
 
     // READ Card details
     if let Some(first_card) = cards.first() {
         println!("\n2. Reading card details...");
-        let card = client.get_card(first_card.id.0).await?;
+        let card = client.get_card(first_card.id.unwrap().0.into()).await?;
         println!("   Name: {}", card.name);
-        println!("   ID: {}", card.id);
+        println!("   ID: {:?}", card.id);
         if let Some(desc) = &card.description {
             println!("   Description: {}", desc);
         }
 
         // RUN Card Query
         println!("\n3. Running card query...");
-        match client.execute_card_query(card.id.0, None).await {
+        match client
+            .execute_card_query(card.id.unwrap().0.into(), None)
+            .await
+        {
             Ok(result) => {
                 if let Some(row_count) = result.row_count {
                     println!("   Query result rows: {}", row_count);
@@ -104,19 +109,20 @@ async fn main() -> Result<()> {
     let dashboards = client.list_dashboards(None).await?;
     println!("   Found {} dashboards", dashboards.len());
     for dash in dashboards.iter().take(3) {
-        println!("   - [{}] {}", dash.id, dash.name);
+        println!("   - [{:?}] {}", dash.id, dash.name);
     }
 
     // READ Dashboard details
     if let Some(first_dashboard) = dashboards.first() {
         println!("\n2. Reading dashboard details...");
-        let dashboard = client.get_dashboard(first_dashboard.id).await?;
+        let dashboard = client
+            .get_dashboard(MetabaseId(first_dashboard.id.unwrap().0.into()))
+            .await?;
         println!("   Name: {}", dashboard.name);
-        println!("   ID: {}", dashboard.id);
+        println!("   ID: {:?}", dashboard.id);
         if let Some(desc) = &dashboard.description {
             println!("   Description: {}", desc);
         }
-        println!("   Dashboard ID: {}", dashboard.id);
     }
 
     // ============================================
@@ -132,7 +138,7 @@ async fn main() -> Result<()> {
             "name": format!("{} (Updated)", card.name)
         });
 
-        match client.update_card(card.id.0, updates).await {
+        match client.update_card(card.id.unwrap().0.into(), updates).await {
             Ok(updated_card) => {
                 println!("✅ Updated card: {}", updated_card.name);
             }

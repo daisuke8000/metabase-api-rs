@@ -1,6 +1,6 @@
 //! Tests for Card API operations
 
-use metabase_api_rs::core::models::{CardBuilder, CardType, MetabaseId};
+use metabase_api_rs::core::models::{common::CardId, CardBuilder, CardType};
 use metabase_api_rs::{ClientBuilder, MetabaseClient};
 use mockito::{Mock, ServerGuard};
 use serde_json::json;
@@ -61,7 +61,7 @@ async fn test_get_card() {
     let card = client.get_card(1).await;
     assert!(card.is_ok());
     let card = card.unwrap();
-    assert_eq!(card.id(), MetabaseId(1));
+    assert_eq!(card.id(), Some(CardId(1)));
     assert_eq!(card.name(), "Test Card");
 }
 
@@ -148,7 +148,7 @@ async fn test_create_card() {
         )
         .create();
 
-    let new_card = CardBuilder::new(MetabaseId(0), "New Card".to_string(), CardType::Question)
+    let new_card = CardBuilder::new(Some(CardId(0)), "New Card".to_string(), CardType::Question)
         .display("line")
         .dataset_query(json!({
             "database": 2,
@@ -160,7 +160,7 @@ async fn test_create_card() {
     let created = client.create_card(new_card).await;
     assert!(created.is_ok());
     let created = created.unwrap();
-    assert_eq!(created.id(), MetabaseId(3));
+    assert_eq!(created.id(), Some(CardId(3)));
     assert_eq!(created.name(), "New Card");
 }
 
@@ -272,7 +272,7 @@ async fn test_create_card_unauthorized() {
         )
         .create();
 
-    let new_card = CardBuilder::new(MetabaseId(0), "Test Card".to_string(), CardType::Question)
+    let new_card = CardBuilder::new(Some(CardId(0)), "Test Card".to_string(), CardType::Question)
         .display("table")
         .dataset_query(json!({
             "database": 2,

@@ -1,6 +1,6 @@
 //! Tests for Collection API operations
 
-use metabase_api_rs::core::models::{CollectionBuilder, MetabaseId};
+use metabase_api_rs::core::models::{common::CollectionId, CollectionBuilder, MetabaseId};
 use metabase_api_rs::{ClientBuilder, MetabaseClient};
 use mockito::{Mock, ServerGuard};
 use serde_json::json;
@@ -56,7 +56,7 @@ async fn test_get_collection() {
     let collection = client.get_collection(MetabaseId(1)).await;
     assert!(collection.is_ok());
     let collection = collection.unwrap();
-    assert_eq!(collection.id(), MetabaseId(1));
+    assert_eq!(collection.id(), Some(CollectionId(1)));
     assert_eq!(collection.name(), "Test Collection");
 }
 
@@ -142,7 +142,7 @@ async fn test_create_collection() {
     let created = client.create_collection(new_collection).await;
     assert!(created.is_ok());
     let created = created.unwrap();
-    assert_eq!(created.id(), MetabaseId(3));
+    assert_eq!(created.id(), Some(CollectionId(3)));
     assert_eq!(created.name(), "New Collection");
 }
 

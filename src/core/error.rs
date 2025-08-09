@@ -16,6 +16,10 @@ pub enum Error {
     #[error("JSON parsing failed: {0}")]
     Json(String),
 
+    /// Serialization/Deserialization error
+    #[error("Serialization error: {0}")]
+    Serialization(String),
+
     /// Authentication failed
     #[error("Authentication failed: {0}")]
     Authentication(String),
@@ -55,6 +59,10 @@ pub enum Error {
     /// Network error
     #[error("Network error: {0}")]
     Network(String),
+
+    /// Not implemented error
+    #[error("Not implemented: {0}")]
+    NotImplemented(String),
 
     /// Unknown error
     #[error("Unknown error: {0}")]
