@@ -12,6 +12,26 @@ pub struct MetabaseId(pub i64);
 #[serde(transparent)]
 pub struct UserId(pub i64);
 
+/// Card ID type - a newtype wrapper around i32
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct CardId(pub i32);
+
+/// Collection ID type - a newtype wrapper around i32
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct CollectionId(pub i32);
+
+/// Dashboard ID type - a newtype wrapper around i32
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct DashboardId(pub i32);
+
+/// Database ID type - a newtype wrapper around i32
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct DatabaseId(pub i32);
+
 impl UserId {
     /// Create a new UserId
     pub fn new(id: i64) -> Self {

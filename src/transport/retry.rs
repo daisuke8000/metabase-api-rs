@@ -193,6 +193,8 @@ fn is_retryable(error: &Error) -> bool {
         Error::Session(_) => false,
         Error::InvalidParameter(_) => false,
         Error::Unknown(_) => false,
+        Error::NotImplemented(_) => false,
+        Error::Serialization(_) => false,
     }
 }
 

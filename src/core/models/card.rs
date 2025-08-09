@@ -1,4 +1,4 @@
-use super::common::MetabaseId;
+use super::common::CardId;
 use super::parameter::{Parameter, ParameterMapping};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -26,7 +26,7 @@ pub enum QueryType {
 /// Represents a Metabase Card (saved question)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Card {
-    pub id: MetabaseId,
+    pub id: Option<CardId>,
     pub name: String,
     /// Required field as per API specification
     #[serde(rename = "type", default)]
@@ -34,7 +34,7 @@ pub struct Card {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub collection_id: Option<MetabaseId>,
+    pub collection_id: Option<i32>,
     #[serde(default = "default_display")]
     pub display: String,
     #[serde(default)]
@@ -55,11 +55,11 @@ pub struct Card {
     pub result_metadata: Option<Value>,
     // Fields verified from Metabase API documentation
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub creator_id: Option<MetabaseId>,
+    pub creator_id: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub database_id: Option<MetabaseId>,
+    pub database_id: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub table_id: Option<MetabaseId>,
+    pub table_id: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub query_type: Option<QueryType>,
     // Additional fields from API specification
@@ -70,13 +70,13 @@ pub struct Card {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub collection_position: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub dashboard_tab_id: Option<MetabaseId>,
+    pub dashboard_tab_id: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub dashboard_id: Option<MetabaseId>,
+    pub dashboard_id: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub public_uuid: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub made_public_by_id: Option<MetabaseId>,
+    pub made_public_by_id: Option<i32>,
     #[serde(default)]
     pub parameters: Vec<Parameter>,
     #[serde(default)]
@@ -89,7 +89,7 @@ fn default_display() -> String {
 
 impl Card {
     /// Create a new Card with minimal required fields
-    pub fn new(id: MetabaseId, name: String, card_type: CardType) -> Self {
+    pub fn new(id: Option<CardId>, name: String, card_type: CardType) -> Self {
         Self {
             id,
             name,
@@ -122,7 +122,7 @@ impl Card {
     }
 
     // Getters
-    pub fn id(&self) -> MetabaseId {
+    pub fn id(&self) -> Option<CardId> {
         self.id
     }
 
@@ -138,7 +138,7 @@ impl Card {
         self.description.as_deref()
     }
 
-    pub fn collection_id(&self) -> Option<MetabaseId> {
+    pub fn collection_id(&self) -> Option<i32> {
         self.collection_id
     }
 
@@ -165,11 +165,11 @@ impl Card {
 
 /// Builder for creating Card instances
 pub struct CardBuilder {
-    id: MetabaseId,
+    id: Option<CardId>,
     name: String,
     card_type: CardType,
     description: Option<String>,
-    collection_id: Option<MetabaseId>,
+    collection_id: Option<i32>,
     display: String,
     visualization_settings: Value,
     dataset_query: Option<Value>,
@@ -179,24 +179,24 @@ pub struct CardBuilder {
     enable_embedding: bool,
     embedding_params: Value,
     result_metadata: Option<Value>,
-    creator_id: Option<MetabaseId>,
-    database_id: Option<MetabaseId>,
-    table_id: Option<MetabaseId>,
+    creator_id: Option<i32>,
+    database_id: Option<i32>,
+    table_id: Option<i32>,
     query_type: Option<QueryType>,
     entity_id: Option<String>,
     cache_ttl: Option<i32>,
     collection_position: Option<i32>,
-    dashboard_tab_id: Option<MetabaseId>,
-    dashboard_id: Option<MetabaseId>,
+    dashboard_tab_id: Option<i32>,
+    dashboard_id: Option<i32>,
     public_uuid: Option<String>,
-    made_public_by_id: Option<MetabaseId>,
+    made_public_by_id: Option<i32>,
     parameters: Vec<Parameter>,
     parameter_mappings: Vec<ParameterMapping>,
 }
 
 impl CardBuilder {
     /// Create a new CardBuilder with required fields
-    pub fn new(id: MetabaseId, name: String, card_type: CardType) -> Self {
+    pub fn new(id: Option<CardId>, name: String, card_type: CardType) -> Self {
         Self {
             id,
             name,
@@ -230,7 +230,7 @@ impl CardBuilder {
 
     /// Create a new CardBuilder for creating a new card (ID will be assigned by server)
     pub fn new_card(name: impl Into<String>) -> Self {
-        Self::new(MetabaseId(0), name.into(), CardType::default())
+        Self::new(None, name.into(), CardType::default())
     }
 
     pub fn description<S: Into<String>>(mut self, desc: S) -> Self {
@@ -238,7 +238,7 @@ impl CardBuilder {
         self
     }
 
-    pub fn collection_id(mut self, id: MetabaseId) -> Self {
+    pub fn collection_id(mut self, id: i32) -> Self {
         self.collection_id = Some(id);
         self
     }
@@ -308,12 +308,12 @@ impl CardBuilder {
         self
     }
 
-    pub fn dashboard_tab_id(mut self, id: MetabaseId) -> Self {
+    pub fn dashboard_tab_id(mut self, id: i32) -> Self {
         self.dashboard_tab_id = Some(id);
         self
     }
 
-    pub fn dashboard_id(mut self, id: MetabaseId) -> Self {
+    pub fn dashboard_id(mut self, id: i32) -> Self {
         self.dashboard_id = Some(id);
         self
     }
@@ -328,17 +328,17 @@ impl CardBuilder {
         self
     }
 
-    pub fn creator_id(mut self, id: MetabaseId) -> Self {
+    pub fn creator_id(mut self, id: i32) -> Self {
         self.creator_id = Some(id);
         self
     }
 
-    pub fn database_id(mut self, id: MetabaseId) -> Self {
+    pub fn database_id(mut self, id: i32) -> Self {
         self.database_id = Some(id);
         self
     }
 
-    pub fn table_id(mut self, id: MetabaseId) -> Self {
+    pub fn table_id(mut self, id: i32) -> Self {
         self.table_id = Some(id);
         self
     }
@@ -353,7 +353,7 @@ impl CardBuilder {
         self
     }
 
-    pub fn made_public_by_id(mut self, id: MetabaseId) -> Self {
+    pub fn made_public_by_id(mut self, id: i32) -> Self {
         self.made_public_by_id = Some(id);
         self
     }
@@ -399,13 +399,9 @@ mod tests {
 
     #[test]
     fn test_card_creation() {
-        let card = Card::new(
-            MetabaseId::new(1),
-            "Test Card".to_string(),
-            CardType::Question,
-        );
+        let card = Card::new(Some(CardId(1)), "Test Card".to_string(), CardType::Question);
 
-        assert_eq!(card.id(), MetabaseId::new(1));
+        assert_eq!(card.id(), Some(CardId(1)));
         assert_eq!(card.name(), "Test Card");
         assert_eq!(card.card_type(), &CardType::Question);
         assert!(card.description().is_none());
@@ -415,21 +411,21 @@ mod tests {
     #[test]
     fn test_card_with_builder() {
         let card = CardBuilder::new(
-            MetabaseId::new(2),
+            Some(CardId(2)),
             "Builder Card".to_string(),
             CardType::Metric,
         )
         .description("A test card created with builder")
-        .collection_id(MetabaseId::new(10))
+        .collection_id(10)
         .display("table")
         .cache_ttl(300)
         .build();
 
-        assert_eq!(card.id(), MetabaseId::new(2));
+        assert_eq!(card.id(), Some(CardId(2)));
         assert_eq!(card.name(), "Builder Card");
         assert_eq!(card.card_type(), &CardType::Metric);
         assert_eq!(card.description(), Some("A test card created with builder"));
-        assert_eq!(card.collection_id(), Some(MetabaseId::new(10)));
+        assert_eq!(card.collection_id(), Some(10));
         assert_eq!(card.display(), "table");
         assert_eq!(card.cache_ttl, Some(300));
     }
@@ -463,22 +459,22 @@ mod tests {
 
         let card: Card = serde_json::from_str(json_str).unwrap();
 
-        assert_eq!(card.id().as_i64(), 123);
+        assert_eq!(card.id(), Some(CardId(123)));
         assert_eq!(card.name(), "Sales Dashboard Card");
         assert_eq!(card.card_type(), &CardType::Question);
         assert_eq!(card.description(), Some("Monthly sales overview"));
-        assert_eq!(card.collection_id(), Some(MetabaseId::new(5)));
+        assert_eq!(card.collection_id(), Some(5));
         assert_eq!(card.display(), "line");
         assert!(!card.archived());
         assert!(card.enable_embedding());
         assert_eq!(card.cache_ttl, Some(600));
         assert_eq!(card.entity_id, Some("abc123".to_string()));
-        assert_eq!(card.creator_id, Some(MetabaseId::new(10)));
-        assert_eq!(card.database_id, Some(MetabaseId::new(1)));
-        assert_eq!(card.table_id, Some(MetabaseId::new(42)));
+        assert_eq!(card.creator_id, Some(10));
+        assert_eq!(card.database_id, Some(1));
+        assert_eq!(card.table_id, Some(42));
         assert_eq!(card.query_type, Some(QueryType::Native));
         assert_eq!(card.public_uuid, Some("1234-5678-9012".to_string()));
-        assert_eq!(card.made_public_by_id, Some(MetabaseId::new(15)));
+        assert_eq!(card.made_public_by_id, Some(15));
     }
 
     #[test]
@@ -512,25 +508,25 @@ mod tests {
     #[test]
     fn test_card_with_new_fields() {
         let card = CardBuilder::new(
-            MetabaseId::new(100),
+            Some(CardId(100)),
             "Analytics Card".to_string(),
             CardType::Question,
         )
         .description("Advanced analytics")
-        .database_id(MetabaseId::new(1))
-        .table_id(MetabaseId::new(5))
+        .database_id(1)
+        .table_id(5)
         .query_type(QueryType::Native)
-        .creator_id(MetabaseId::new(42))
+        .creator_id(42)
         .public_uuid("uuid-1234")
-        .made_public_by_id(MetabaseId::new(10))
+        .made_public_by_id(10)
         .build();
 
-        assert_eq!(card.database_id, Some(MetabaseId::new(1)));
-        assert_eq!(card.table_id, Some(MetabaseId::new(5)));
+        assert_eq!(card.database_id, Some(1));
+        assert_eq!(card.table_id, Some(5));
         assert_eq!(card.query_type, Some(QueryType::Native));
-        assert_eq!(card.creator_id, Some(MetabaseId::new(42)));
+        assert_eq!(card.creator_id, Some(42));
         assert_eq!(card.public_uuid, Some("uuid-1234".to_string()));
-        assert_eq!(card.made_public_by_id, Some(MetabaseId::new(10)));
+        assert_eq!(card.made_public_by_id, Some(10));
     }
 
     #[test]
@@ -557,7 +553,7 @@ mod tests {
         };
 
         let card = CardBuilder::new(
-            MetabaseId::new(100),
+            Some(CardId(100)),
             "Parameterized Card".to_string(),
             CardType::Question,
         )

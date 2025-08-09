@@ -36,11 +36,20 @@ tasks:
       - echo "✅ All checks passed!"
 
   check:full:
-    desc: Full check with integration tests
+    desc: Full check with integration tests and feature validation
     cmds:
       - task: check
+      - task: test:features
       - task: integration:run
-      - echo "✅ Full check complete!"
+      - echo "✅ Full check complete with all features validated!"
+
+  check:commit:
+    desc: Pre-commit validation (format, lint, tests, features)
+    cmds:
+      - task: fmt:check
+      - task: lint
+      - task: test:features
+      - echo "✅ Pre-commit checks passed!"
 
   watch:
     desc: Watch for changes and run tests
@@ -107,6 +116,31 @@ tasks:
     desc: "Run single test (usage: task test:single -- test_name)"
     cmds:
       - cargo test {{.CLI_ARGS}}
+
+  test:features:
+    desc: Test all feature combinations
+    cmds:
+      - echo "🧪 Testing all feature combinations..."
+      - echo "1/6 Default features"
+      - cargo test --no-default-features
+      - echo "2/6 Cache feature"
+      - cargo test --features cache
+      - echo "3/6 Performance feature" 
+      - cargo test --features performance
+      - echo "4/6 Query-builder feature"
+      - cargo test --features query-builder
+      - echo "5/6 All features"
+      - cargo test --all-features
+      - echo "6/6 Benchmark compilation check"
+      - cargo bench --no-run
+      - echo "✅ All feature combinations tested successfully!"
+
+  test:comprehensive:
+    desc: Comprehensive testing with all combinations
+    cmds:
+      - task: test:features
+      - task: integration:run
+      - echo "✅ Comprehensive testing completed!"
 
   coverage:
     desc: Generate coverage report

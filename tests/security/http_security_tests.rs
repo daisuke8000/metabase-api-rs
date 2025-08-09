@@ -38,7 +38,7 @@ fn test_url_validation_on_construction() {
 #[test]
 fn test_path_traversal_protection() {
     // Test that path construction prevents directory traversal attacks
-    let client = HttpClient::new("https://example.com").expect("Valid URL");
+    let _client = HttpClient::new("https://example.com").expect("Valid URL");
 
     // These should be handled safely by url::Url::join()
     // The actual request would fail at the server level, but URL construction should be safe
@@ -113,7 +113,7 @@ mod url_injection_tests {
     #[test]
     fn test_query_parameter_injection() {
         // Test that query parameters are handled safely
-        let client = HttpClient::new("https://example.com").expect("Valid URL");
+        let _client = HttpClient::new("https://example.com").expect("Valid URL");
 
         // Test paths with query parameters that might be used for injection
         let test_paths = vec![

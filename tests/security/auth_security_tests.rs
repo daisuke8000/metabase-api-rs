@@ -185,7 +185,7 @@ mod brute_force_protection_tests {
         // This test ensures that authentication checks don't leak timing information
         // that could be used for brute force attacks
 
-        let mut auth_manager = AuthManager::new();
+        let auth_manager = AuthManager::new();
 
         // Test with invalid session - should return quickly and consistently
         let start = std::time::Instant::now();

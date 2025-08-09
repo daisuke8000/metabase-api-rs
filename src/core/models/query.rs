@@ -378,6 +378,29 @@ impl NativeQueryBuilder {
         self.add_param(name, "date", Value::String(value.to_string()))
     }
 
+    /// Adds parameters from a HashMap
+    pub fn with_params(mut self, params: HashMap<String, Value>) -> Self {
+        for (name, value) in params {
+            let param_type = match &value {
+                Value::String(_) => "text",
+                Value::Number(_) => "number",
+                Value::Bool(_) => "text",
+                _ => "text",
+            };
+
+            let tag = TemplateTag {
+                id: uuid::Uuid::new_v4().to_string(),
+                name: name.clone(),
+                display_name: name.clone(),
+                tag_type: param_type.to_string(),
+                required: false,
+                default: Some(value),
+            };
+            self.template_tags.insert(name, tag);
+        }
+        self
+    }
+
     /// Sets the collection
     pub fn collection(mut self, collection: impl Into<String>) -> Self {
         self.collection = Some(collection.into());

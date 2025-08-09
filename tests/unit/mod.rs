@@ -4,6 +4,10 @@ mod models_common_test;
 mod models_card_test;
 mod models_collection_test;
 mod transport;
+mod transport_traits_test;
+mod auth_provider_test;
+mod trait_integration_test;
+mod repository_unit_test;
 
 // API layer tests
 mod api {

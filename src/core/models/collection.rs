@@ -1,42 +1,42 @@
-use super::common::MetabaseId;
+use super::common::CollectionId;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Represents a Metabase Collection
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Collection {
-    id: MetabaseId,
-    name: String,
+    pub id: Option<CollectionId>,
+    pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    color: Option<String>,
+    pub color: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    parent_id: Option<MetabaseId>,
+    pub parent_id: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    personal_owner_id: Option<i64>,
+    pub personal_owner_id: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    namespace: Option<String>,
+    pub namespace: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    slug: Option<String>,
-    #[serde(default)]
-    archived: bool,
+    pub slug: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archived: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    can_write: Option<bool>,
+    pub can_write: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    updated_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
     // Additional fields from API specification
     #[serde(skip_serializing_if = "Option::is_none")]
-    authority_level: Option<String>,
+    pub authority_level: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    collection_position: Option<i32>,
+    pub collection_position: Option<i32>,
 }
 
 impl Collection {
     /// Create a new Collection with minimal required fields
-    pub fn new(id: MetabaseId, name: String) -> Self {
+    pub fn new(id: Option<CollectionId>, name: String) -> Self {
         Self {
             id,
             name,
@@ -46,7 +46,7 @@ impl Collection {
             personal_owner_id: None,
             namespace: None,
             slug: None,
-            archived: false,
+            archived: Some(false),
             can_write: None,
             created_at: None,
             updated_at: None,
@@ -56,7 +56,7 @@ impl Collection {
     }
 
     // Getters
-    pub fn id(&self) -> MetabaseId {
+    pub fn id(&self) -> Option<CollectionId> {
         self.id
     }
 
@@ -72,7 +72,7 @@ impl Collection {
         self.color.as_deref()
     }
 
-    pub fn parent_id(&self) -> Option<MetabaseId> {
+    pub fn parent_id(&self) -> Option<i32> {
         self.parent_id
     }
 
@@ -88,7 +88,7 @@ impl Collection {
         self.slug.as_deref()
     }
 
-    pub fn archived(&self) -> bool {
+    pub fn archived(&self) -> Option<bool> {
         self.archived
     }
 
@@ -117,15 +117,15 @@ impl Collection {
 
 /// Builder for creating Collection instances
 pub struct CollectionBuilder {
-    id: MetabaseId,
+    id: Option<CollectionId>,
     name: String,
     description: Option<String>,
     color: Option<String>,
-    parent_id: Option<MetabaseId>,
+    parent_id: Option<i32>,
     personal_owner_id: Option<i64>,
     namespace: Option<String>,
     slug: Option<String>,
-    archived: bool,
+    archived: Option<bool>,
     can_write: Option<bool>,
     created_at: Option<DateTime<Utc>>,
     updated_at: Option<DateTime<Utc>>,
@@ -135,7 +135,7 @@ pub struct CollectionBuilder {
 
 impl CollectionBuilder {
     /// Create a new CollectionBuilder with required fields
-    pub fn new(id: MetabaseId, name: String) -> Self {
+    pub fn new(id: Option<CollectionId>, name: String) -> Self {
         Self {
             id,
             name,
@@ -145,7 +145,7 @@ impl CollectionBuilder {
             personal_owner_id: None,
             namespace: None,
             slug: None,
-            archived: false,
+            archived: Some(false),
             can_write: None,
             created_at: None,
             updated_at: None,
@@ -156,7 +156,7 @@ impl CollectionBuilder {
 
     /// Create a new CollectionBuilder for creating a new collection (ID will be assigned by server)
     pub fn new_collection(name: impl Into<String>) -> Self {
-        Self::new(MetabaseId(0), name.into())
+        Self::new(None, name.into())
     }
 
     pub fn description<S: Into<String>>(mut self, desc: S) -> Self {
@@ -169,7 +169,7 @@ impl CollectionBuilder {
         self
     }
 
-    pub fn parent_id(mut self, id: MetabaseId) -> Self {
+    pub fn parent_id(mut self, id: i32) -> Self {
         self.parent_id = Some(id);
         self
     }
@@ -190,7 +190,7 @@ impl CollectionBuilder {
     }
 
     pub fn archived(mut self, archived: bool) -> Self {
-        self.archived = archived;
+        self.archived = Some(archived);
         self
     }
 
@@ -246,9 +246,9 @@ mod tests {
 
     #[test]
     fn test_collection_creation() {
-        let collection = Collection::new(MetabaseId::new(1), "Test Collection".to_string());
+        let collection = Collection::new(Some(CollectionId(1)), "Test Collection".to_string());
 
-        assert_eq!(collection.id(), MetabaseId::new(1));
+        assert_eq!(collection.id(), Some(CollectionId(1)));
         assert_eq!(collection.name(), "Test Collection");
         assert!(collection.description().is_none());
         assert!(collection.parent_id().is_none());
@@ -257,23 +257,25 @@ mod tests {
 
     #[test]
     fn test_collection_hierarchy() {
-        let parent = Collection::new(MetabaseId::new(1), "Parent Collection".to_string());
+        let _parent = Collection::new(Some(CollectionId(1)), "Parent Collection".to_string());
 
-        let child = CollectionBuilder::new(MetabaseId::new(2), "Child Collection".to_string())
-            .parent_id(parent.id())
+        let child = CollectionBuilder::new(Some(CollectionId(2)), "Child Collection".to_string())
+            .parent_id(1)
             .description("A child collection")
             .build();
 
-        assert_eq!(child.parent_id(), Some(parent.id()));
+        assert_eq!(child.parent_id(), Some(1));
         assert_eq!(child.description(), Some("A child collection"));
     }
 
     #[test]
     fn test_personal_collection() {
-        let personal =
-            CollectionBuilder::new(MetabaseId::new(100), "My Personal Collection".to_string())
-                .personal_owner_id(42)
-                .build();
+        let personal = CollectionBuilder::new(
+            Some(CollectionId(100)),
+            "My Personal Collection".to_string(),
+        )
+        .personal_owner_id(42)
+        .build();
 
         assert_eq!(personal.personal_owner_id(), Some(42));
         assert!(personal.is_personal());
@@ -282,7 +284,7 @@ mod tests {
     #[test]
     fn test_collection_with_authority_level() {
         let collection =
-            CollectionBuilder::new(MetabaseId::new(10), "Admin Collection".to_string())
+            CollectionBuilder::new(Some(CollectionId(10)), "Admin Collection".to_string())
                 .authority_level("admin")
                 .collection_position(1)
                 .build();

@@ -61,7 +61,7 @@ async fn main() -> Result<()> {
     for collection in collections.iter().take(5) {
         // Show first 5
         println!(
-            "  - [{}] {} ({})",
+            "  - [{:?}] {} ({})",
             collection.id(),
             collection.name(),
             collection.slug().unwrap_or("no-slug")
@@ -73,7 +73,7 @@ async fn main() -> Result<()> {
     let cards = client.list_cards(None).await?;
     for card in cards.iter().take(5) {
         // Show first 5
-        println!("  - [{}] {}", card.id, card.name);
+        println!("  - [{:?}] {}", card.id, card.name);
         if let Some(desc) = &card.description {
             println!("    Description: {}", desc);
         }

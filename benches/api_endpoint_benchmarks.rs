@@ -24,7 +24,7 @@ fn bench_authentication(c: &mut Criterion) {
                     // In real scenario, this would authenticate against actual server
                     let credentials = Credentials::EmailPassword {
                         email: "test@example.com".to_string(),
-                        password: "test_password".to_string(),
+                        password: "test_password".to_string().into(),
                     };
 
                     // Simulate authentication delay
@@ -42,7 +42,7 @@ fn bench_authentication(c: &mut Criterion) {
                 let start = std::time::Instant::now();
                 for _ in 0..iters {
                     let credentials = Credentials::ApiKey {
-                        key: "test_api_key".to_string(),
+                        key: "test_api_key".to_string().into(),
                     };
 
                     // API key auth is typically faster
