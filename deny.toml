@@ -1,0 +1,56 @@
+# deny.toml - Security and licensing policy for metabase-api-rs
+# Configuration for cargo-deny v0.18.3+
+
+[graph]
+targets = [
+    { triple = "x86_64-unknown-linux-gnu" },
+    { triple = "aarch64-unknown-linux-gnu" },
+    { triple = "x86_64-apple-darwin" },
+    { triple = "aarch64-apple-darwin" },
+    { triple = "x86_64-pc-windows-msvc" },
+]
+
+[advisories]
+# Check for security vulnerabilities
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+unmaintained = "none"
+yanked = "deny"
+ignore = [
+    # Add specific advisories to ignore here if needed
+    # "RUSTSEC-YYYY-NNNN",
+]
+
+[licenses]
+# License compliance - allow permissive licenses only
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "CC0-1.0",
+]
+confidence-threshold = 0.8
+
+[licenses.private]
+ignore = false
+
+[bans]
+# Dependency banning rules
+multiple-versions = "allow"
+wildcards = "allow"
+highlight = "all"
+deny = [
+    # Ban known problematic crates
+    # { name = "openssl", version = "*" },  # Use rustls instead
+]
+
+[sources]
+# Source repository validation
+unknown-registry = "deny"
+unknown-git = "allow"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

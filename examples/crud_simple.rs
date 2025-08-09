@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
     let password = std::env::var("METABASE_PASSWORD").unwrap_or_else(|_| "password123".to_string());
 
     client
-        .authenticate(Credentials::EmailPassword { email, password })
+        .authenticate(Credentials::email_password(email, password))
         .await?;
 
     println!("✅ Authenticated successfully");

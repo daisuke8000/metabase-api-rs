@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
     // Authenticate
     println!("Authenticating...");
     client
-        .authenticate(Credentials::EmailPassword { email, password })
+        .authenticate(Credentials::email_password(email, password))
         .await?;
     println!("Authentication successful!");
 

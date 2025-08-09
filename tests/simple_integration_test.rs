@@ -42,10 +42,10 @@ async fn test_basic_authentication() {
     let auth_start = Instant::now();
 
     let result = client
-        .authenticate(Credentials::EmailPassword {
-            email: get_test_email(),
-            password: get_test_password(),
-        })
+        .authenticate(Credentials::email_password(
+            get_test_email(),
+            get_test_password(),
+        ))
         .await;
 
     let auth_duration = auth_start.elapsed();
@@ -78,10 +78,10 @@ async fn test_simple_sql_execution() {
 
     // Authenticate first
     client
-        .authenticate(Credentials::EmailPassword {
-            email: get_test_email(),
-            password: get_test_password(),
-        })
+        .authenticate(Credentials::email_password(
+            get_test_email(),
+            get_test_password(),
+        ))
         .await
         .expect("Authentication failed");
 
@@ -129,10 +129,10 @@ async fn test_parameterized_sql_execution() {
 
     // Authenticate first
     client
-        .authenticate(Credentials::EmailPassword {
-            email: get_test_email(),
-            password: get_test_password(),
-        })
+        .authenticate(Credentials::email_password(
+            get_test_email(),
+            get_test_password(),
+        ))
         .await
         .expect("Authentication failed");
 
@@ -180,10 +180,10 @@ async fn test_session_management() {
 
     // Initial authentication
     client
-        .authenticate(Credentials::EmailPassword {
-            email: get_test_email(),
-            password: get_test_password(),
-        })
+        .authenticate(Credentials::email_password(
+            get_test_email(),
+            get_test_password(),
+        ))
         .await
         .expect("Initial authentication failed");
 
@@ -204,10 +204,10 @@ async fn test_session_management() {
 
     // Re-authenticate should work
     client
-        .authenticate(Credentials::EmailPassword {
-            email: get_test_email(),
-            password: get_test_password(),
-        })
+        .authenticate(Credentials::email_password(
+            get_test_email(),
+            get_test_password(),
+        ))
         .await
         .expect("Re-authentication failed");
 
@@ -234,10 +234,10 @@ async fn test_performance_baseline() {
     // Measure authentication time
     let auth_start = Instant::now();
     client
-        .authenticate(Credentials::EmailPassword {
-            email: get_test_email(),
-            password: get_test_password(),
-        })
+        .authenticate(Credentials::email_password(
+            get_test_email(),
+            get_test_password(),
+        ))
         .await
         .expect("Authentication failed");
     let auth_time = auth_start.elapsed();

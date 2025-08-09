@@ -11,6 +11,7 @@ use crate::core::models::{
     NativeQuery, Pagination, QueryResult, SyncResult, User,
 };
 use crate::transport::HttpClient;
+use secrecy::ExposeSecret;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -111,16 +112,16 @@ impl MetabaseClient {
 
     /// Authenticates with the Metabase API
     pub async fn authenticate(&mut self, credentials: Credentials) -> Result<()> {
-        let request_body = match credentials {
+        let request_body = match &credentials {
             Credentials::EmailPassword { email, password } => {
                 json!({
                     "username": email,
-                    "password": password
+                    "password": password.expose_secret()
                 })
             }
             Credentials::ApiKey { key } => {
                 json!({
-                    "api_key": key
+                    "api_key": key.expose_secret()
                 })
             }
         };

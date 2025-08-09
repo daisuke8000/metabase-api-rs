@@ -2,6 +2,21 @@ use crate::{Error, Result};
 use reqwest::{Client, Response};
 use serde::{de::DeserializeOwned, Serialize};
 use std::time::Duration;
+use url::Url;
+
+/// Validate URL protocol for security - only allow HTTP/HTTPS
+fn validate_url_protocol(url: &str) -> Result<()> {
+    let parsed =
+        Url::parse(url).map_err(|e| Error::Config(format!("Invalid base URL '{}': {}", url, e)))?;
+
+    match parsed.scheme() {
+        "http" | "https" => Ok(()),
+        scheme => Err(Error::Config(format!(
+            "Unsupported protocol '{}' in URL '{}'. Only HTTP and HTTPS are allowed.",
+            scheme, url
+        ))),
+    }
+}
 
 /// HTTP client for making requests to the Metabase API
 #[derive(Debug, Clone)]
@@ -14,6 +29,10 @@ impl HttpClient {
     /// Create a new HTTP client with default configuration
     pub fn new(base_url: impl Into<String>) -> Result<Self> {
         let base_url = base_url.into();
+
+        // Validate base URL format and protocol
+        validate_url_protocol(&base_url)?;
+
         let inner = Client::builder()
             .cookie_store(true)
             .timeout(Duration::from_secs(30))
@@ -27,6 +46,15 @@ impl HttpClient {
         Ok(Self { inner, base_url })
     }
 
+    /// Safely construct URL by joining base URL with path
+    fn build_url(&self, path: &str) -> Result<Url> {
+        let base = Url::parse(&self.base_url)
+            .map_err(|e| Error::Config(format!("Invalid base URL: {}", e)))?;
+
+        base.join(path)
+            .map_err(|e| Error::Config(format!("Invalid URL path '{}': {}", path, e)))
+    }
+
     /// Get the base URL
     pub fn base_url(&self) -> &str {
         &self.base_url
@@ -37,10 +65,10 @@ impl HttpClient {
     where
         T: DeserializeOwned,
     {
-        let url = format!("{}{}", self.base_url, path);
+        let url = self.build_url(path)?;
         let response = self
             .inner
-            .get(&url)
+            .get(url)
             .send()
             .await
             .map_err(|e| Error::Network(e.to_string()))?;
@@ -54,10 +82,10 @@ impl HttpClient {
         T: DeserializeOwned,
         B: Serialize + ?Sized,
     {
-        let url = format!("{}{}", self.base_url, path);
+        let url = self.build_url(path)?;
         let response = self
             .inner
-            .post(&url)
+            .post(url)
             .json(body)
             .send()
             .await
@@ -72,10 +100,10 @@ impl HttpClient {
         T: DeserializeOwned,
         B: Serialize + ?Sized,
     {
-        let url = format!("{}{}", self.base_url, path);
+        let url = self.build_url(path)?;
         let response = self
             .inner
-            .put(&url)
+            .put(url)
             .json(body)
             .send()
             .await
@@ -86,10 +114,10 @@ impl HttpClient {
 
     /// Make a DELETE request
     pub async fn delete(&self, path: &str) -> Result<()> {
-        let url = format!("{}{}", self.base_url, path);
+        let url = self.build_url(path)?;
         let response = self
             .inner
-            .delete(&url)
+            .delete(url)
             .send()
             .await
             .map_err(|e| Error::Network(e.to_string()))?;
@@ -114,10 +142,10 @@ impl HttpClient {
     where
         B: Serialize + ?Sized,
     {
-        let url = format!("{}{}", self.base_url, path);
+        let url = self.build_url(path)?;
         let response = self
             .inner
-            .post(&url)
+            .post(url)
             .json(body)
             .send()
             .await
@@ -128,10 +156,10 @@ impl HttpClient {
 
     /// Make a GET request and return binary data
     pub async fn get_binary(&self, path: &str) -> Result<Vec<u8>> {
-        let url = format!("{}{}", self.base_url, path);
+        let url = self.build_url(path)?;
         let response = self
             .inner
-            .get(&url)
+            .get(url)
             .send()
             .await
             .map_err(|e| Error::Network(e.to_string()))?;
@@ -235,6 +263,9 @@ impl HttpClientBuilder {
 
     /// Build the HTTP client
     pub fn build(self) -> Result<HttpClient> {
+        // Validate base URL format and protocol
+        validate_url_protocol(&self.base_url)?;
+
         let mut client_builder = Client::builder().cookie_store(true).timeout(self.timeout);
 
         // Set user agent if provided

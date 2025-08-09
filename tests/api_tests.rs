@@ -159,30 +159,20 @@ fn test_clear_session() {
 
 #[test]
 fn test_credentials_email_password() {
-    let creds = Credentials::EmailPassword {
-        email: "user@example.com".to_string(),
-        password: "password123".to_string(),
-    };
+    let creds = Credentials::email_password("user@example.com", "password123");
 
-    match creds {
-        Credentials::EmailPassword { email, password } => {
-            assert_eq!(email, "user@example.com");
-            assert_eq!(password, "password123");
-        }
-        _ => panic!("Expected EmailPassword variant"),
-    }
+    // Test accessor methods instead of direct field access
+    assert_eq!(creds.email(), Some("user@example.com"));
+    assert_eq!(creds.password(), Some("password123"));
+    assert!(creds.api_key().is_none());
 }
 
 #[test]
 fn test_credentials_api_key() {
-    let creds = Credentials::ApiKey {
-        key: "mb_test_key_12345".to_string(),
-    };
+    let creds = Credentials::new_api_key("mb_test_key_12345");
 
-    match creds {
-        Credentials::ApiKey { key } => {
-            assert_eq!(key, "mb_test_key_12345");
-        }
-        _ => panic!("Expected ApiKey variant"),
-    }
+    // Test accessor methods instead of direct field access
+    assert!(creds.email().is_none());
+    assert!(creds.password().is_none());
+    assert_eq!(creds.api_key(), Some("mb_test_key_12345"));
 }

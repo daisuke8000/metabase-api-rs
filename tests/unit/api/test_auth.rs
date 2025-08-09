@@ -17,15 +17,22 @@ fn test_session_management() {
     // Set session
     let token = "test-session-token";
     let user = User {
-        id: 1,
+        id: metabase_api_rs::core::models::common::UserId(1),
         email: "user@example.com".to_string(),
-        first_name: Some("Test".to_string()),
-        last_name: Some("User".to_string()),
+        first_name: "Test".to_string(),
+        last_name: "User".to_string(),
         is_superuser: false,
         is_active: true,
+        is_qbnewb: false,
         date_joined: chrono::Utc::now(),
         last_login: Some(chrono::Utc::now()),
         common_name: Some("Test User".to_string()),
+        group_ids: Vec::new(),
+        locale: None,
+        google_auth: false,
+        ldap_auth: false,
+        login_attributes: None,
+        user_group_memberships: Vec::new(),
     };
     
     auth_manager.set_session(token.to_string(), user.clone());
@@ -42,15 +49,22 @@ fn test_clear_session() {
     // Set session
     let token = "test-session-token";
     let user = User {
-        id: 1,
+        id: metabase_api_rs::core::models::common::UserId(1),
         email: "user@example.com".to_string(),
-        first_name: Some("Test".to_string()),
-        last_name: Some("User".to_string()),
+        first_name: "Test".to_string(),
+        last_name: "User".to_string(),
         is_superuser: false,
         is_active: true,
+        is_qbnewb: false,
         date_joined: chrono::Utc::now(),
         last_login: Some(chrono::Utc::now()),
         common_name: Some("Test User".to_string()),
+        group_ids: Vec::new(),
+        locale: None,
+        google_auth: false,
+        ldap_auth: false,
+        login_attributes: None,
+        user_group_memberships: Vec::new(),
     };
     
     auth_manager.set_session(token.to_string(), user);
@@ -65,30 +79,20 @@ fn test_clear_session() {
 
 #[test]
 fn test_credentials_email_password() {
-    let creds = Credentials::EmailPassword {
-        email: "user@example.com".to_string(),
-        password: "password123".to_string(),
-    };
+    let creds = Credentials::email_password("user@example.com", "password123");
     
-    match creds {
-        Credentials::EmailPassword { email, password } => {
-            assert_eq!(email, "user@example.com");
-            assert_eq!(password, "password123");
-        }
-        _ => panic!("Expected EmailPassword variant"),
-    }
+    // Test accessor methods
+    assert_eq!(creds.email(), Some("user@example.com"));
+    assert_eq!(creds.password(), Some("password123"));
+    assert!(creds.api_key().is_none());
 }
 
 #[test]
 fn test_credentials_api_key() {
-    let creds = Credentials::ApiKey {
-        key: "mb_test_key_12345".to_string(),
-    };
+    let creds = Credentials::new_api_key("mb_test_key_12345");
     
-    match creds {
-        Credentials::ApiKey { key } => {
-            assert_eq!(key, "mb_test_key_12345");
-        }
-        _ => panic!("Expected ApiKey variant"),
-    }
+    // Test accessor methods  
+    assert!(creds.email().is_none());
+    assert!(creds.password().is_none());
+    assert_eq!(creds.api_key(), Some("mb_test_key_12345"));
 }

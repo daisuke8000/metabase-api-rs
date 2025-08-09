@@ -118,10 +118,10 @@ async fn test_create_card() {
     // Authenticate first
     let _auth_mock = mock_auth(&mut server);
     client
-        .authenticate(metabase_api_rs::api::Credentials::EmailPassword {
-            email: "test@example.com".to_string(),
-            password: "password".to_string(),
-        })
+        .authenticate(metabase_api_rs::api::Credentials::email_password(
+            "test@example.com",
+            "password",
+        ))
         .await
         .expect("Failed to authenticate");
 
@@ -171,10 +171,10 @@ async fn test_update_card() {
     // Authenticate first
     let _auth_mock = mock_auth(&mut server);
     client
-        .authenticate(metabase_api_rs::api::Credentials::EmailPassword {
-            email: "test@example.com".to_string(),
-            password: "password".to_string(),
-        })
+        .authenticate(metabase_api_rs::api::Credentials::email_password(
+            "test@example.com",
+            "password",
+        ))
         .await
         .expect("Failed to authenticate");
 
@@ -217,10 +217,10 @@ async fn test_delete_card() {
     // Authenticate first
     let _auth_mock = mock_auth(&mut server);
     client
-        .authenticate(metabase_api_rs::api::Credentials::EmailPassword {
-            email: "test@example.com".to_string(),
-            password: "password".to_string(),
-        })
+        .authenticate(metabase_api_rs::api::Credentials::email_password(
+            "test@example.com",
+            "password",
+        ))
         .await
         .expect("Failed to authenticate");
 

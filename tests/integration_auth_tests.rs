@@ -20,10 +20,10 @@ async fn test_email_password_authentication() {
 
     // Test authentication
     let result = client
-        .authenticate(Credentials::EmailPassword {
-            email: get_test_email(),
-            password: get_test_password(),
-        })
+        .authenticate(Credentials::email_password(
+            get_test_email(),
+            get_test_password(),
+        ))
         .await;
 
     assert!(result.is_ok(), "Authentication should succeed");
@@ -41,10 +41,10 @@ async fn test_authentication_with_invalid_credentials() {
         .expect("Failed to build client");
 
     let result = client
-        .authenticate(Credentials::EmailPassword {
-            email: "invalid@example.com".to_string(),
-            password: "wrong_password".to_string(),
-        })
+        .authenticate(Credentials::email_password(
+            "invalid@example.com",
+            "wrong_password",
+        ))
         .await;
 
     assert!(
@@ -66,10 +66,10 @@ async fn test_get_current_user() {
 
     // Authenticate first
     client
-        .authenticate(Credentials::EmailPassword {
-            email: get_test_email(),
-            password: get_test_password(),
-        })
+        .authenticate(Credentials::email_password(
+            get_test_email(),
+            get_test_password(),
+        ))
         .await
         .expect("Authentication should succeed");
 
@@ -94,10 +94,10 @@ async fn test_logout() {
 
     // Authenticate
     client
-        .authenticate(Credentials::EmailPassword {
-            email: get_test_email(),
-            password: get_test_password(),
-        })
+        .authenticate(Credentials::email_password(
+            get_test_email(),
+            get_test_password(),
+        ))
         .await
         .expect("Authentication should succeed");
 

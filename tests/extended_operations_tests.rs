@@ -39,10 +39,10 @@ async fn test_execute_card_query() {
     // Authenticate first
     let _auth_mock = mock_auth(&mut server);
     client
-        .authenticate(metabase_api_rs::api::Credentials::EmailPassword {
-            email: "test@example.com".to_string(),
-            password: "password".to_string(),
-        })
+        .authenticate(metabase_api_rs::api::Credentials::email_password(
+            "test@example.com",
+            "password",
+        ))
         .await
         .expect("Failed to authenticate");
 
@@ -83,10 +83,10 @@ async fn test_export_card_query_csv() {
     // Authenticate first
     let _auth_mock = mock_auth(&mut server);
     client
-        .authenticate(metabase_api_rs::api::Credentials::EmailPassword {
-            email: "test@example.com".to_string(),
-            password: "password".to_string(),
-        })
+        .authenticate(metabase_api_rs::api::Credentials::email_password(
+            "test@example.com",
+            "password",
+        ))
         .await
         .expect("Failed to authenticate");
 
@@ -113,10 +113,10 @@ async fn test_execute_card_pivot_query() {
     // Authenticate first
     let _auth_mock = mock_auth(&mut server);
     client
-        .authenticate(metabase_api_rs::api::Credentials::EmailPassword {
-            email: "test@example.com".to_string(),
-            password: "password".to_string(),
-        })
+        .authenticate(metabase_api_rs::api::Credentials::email_password(
+            "test@example.com",
+            "password",
+        ))
         .await
         .expect("Failed to authenticate");
 
@@ -217,10 +217,10 @@ async fn test_sync_database_schema() {
     // Authenticate first
     let _auth_mock = mock_auth(&mut server);
     client
-        .authenticate(metabase_api_rs::api::Credentials::EmailPassword {
-            email: "test@example.com".to_string(),
-            password: "password".to_string(),
-        })
+        .authenticate(metabase_api_rs::api::Credentials::email_password(
+            "test@example.com",
+            "password",
+        ))
         .await
         .expect("Failed to authenticate");
 
@@ -318,10 +318,10 @@ async fn test_execute_dataset_query() {
     // Authenticate first
     let _auth_mock = mock_auth(&mut server);
     client
-        .authenticate(metabase_api_rs::api::Credentials::EmailPassword {
-            email: "test@example.com".to_string(),
-            password: "password".to_string(),
-        })
+        .authenticate(metabase_api_rs::api::Credentials::email_password(
+            "test@example.com",
+            "password",
+        ))
         .await
         .expect("Failed to authenticate");
 
@@ -367,10 +367,10 @@ async fn test_execute_dataset_pivot() {
     // Authenticate first
     let _auth_mock = mock_auth(&mut server);
     client
-        .authenticate(metabase_api_rs::api::Credentials::EmailPassword {
-            email: "test@example.com".to_string(),
-            password: "password".to_string(),
-        })
+        .authenticate(metabase_api_rs::api::Credentials::email_password(
+            "test@example.com",
+            "password",
+        ))
         .await
         .expect("Failed to authenticate");
 
@@ -418,10 +418,10 @@ async fn test_export_dataset_xlsx() {
     // Authenticate first
     let _auth_mock = mock_auth(&mut server);
     client
-        .authenticate(metabase_api_rs::api::Credentials::EmailPassword {
-            email: "test@example.com".to_string(),
-            password: "password".to_string(),
-        })
+        .authenticate(metabase_api_rs::api::Credentials::email_password(
+            "test@example.com",
+            "password",
+        ))
         .await
         .expect("Failed to authenticate");
 
