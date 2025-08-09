@@ -21,7 +21,7 @@ full = ["cache", "performance", "query-builder"]
 reqwest = { version = "0.12", features = ["json", "cookies"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tokio = { version = "1.0", features = ["macros", "rt", "time"] }
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "time"] }
 thiserror = "1.0"
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
@@ -37,4 +37,8 @@ mockito = "1.2"
 tokio-test = "0.4"
 criterion = { version = "0.5", features = ["html_reports"] }
 dotenvy = "0.15"
+
+[[example]]
+name = "simple_example"
+path = "examples/simple_example.rs"
 

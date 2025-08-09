@@ -1,4 +1,5 @@
 use super::common::MetabaseId;
+use super::parameter::{Parameter, ParameterMapping};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -77,9 +78,9 @@ pub struct Card {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub made_public_by_id: Option<MetabaseId>,
     #[serde(default)]
-    pub parameters: Vec<Value>, // TODO: Define proper parameter schema
+    pub parameters: Vec<Parameter>,
     #[serde(default)]
-    pub parameter_mappings: Vec<Value>, // TODO: Define proper parameter mapping schema
+    pub parameter_mappings: Vec<ParameterMapping>,
 }
 
 fn default_display() -> String {
@@ -189,8 +190,8 @@ pub struct CardBuilder {
     dashboard_id: Option<MetabaseId>,
     public_uuid: Option<String>,
     made_public_by_id: Option<MetabaseId>,
-    parameters: Vec<Value>,
-    parameter_mappings: Vec<Value>,
+    parameters: Vec<Parameter>,
+    parameter_mappings: Vec<ParameterMapping>,
 }
 
 impl CardBuilder {
@@ -317,12 +318,12 @@ impl CardBuilder {
         self
     }
 
-    pub fn parameters(mut self, params: Vec<Value>) -> Self {
+    pub fn parameters(mut self, params: Vec<Parameter>) -> Self {
         self.parameters = params;
         self
     }
 
-    pub fn parameter_mappings(mut self, mappings: Vec<Value>) -> Self {
+    pub fn parameter_mappings(mut self, mappings: Vec<ParameterMapping>) -> Self {
         self.parameter_mappings = mappings;
         self
     }
@@ -394,6 +395,7 @@ impl CardBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::models::parameter::{ParameterTarget, VariableTarget};
 
     #[test]
     fn test_card_creation() {
@@ -529,5 +531,43 @@ mod tests {
         assert_eq!(card.creator_id, Some(MetabaseId::new(42)));
         assert_eq!(card.public_uuid, Some("uuid-1234".to_string()));
         assert_eq!(card.made_public_by_id, Some(MetabaseId::new(10)));
+    }
+
+    #[test]
+    fn test_card_with_parameters() {
+        let parameter = Parameter {
+            id: "date_param".to_string(),
+            param_type: "date/relative".to_string(),
+            name: "Date Filter".to_string(),
+            slug: "date".to_string(),
+            default: Some(serde_json::json!("past7days")),
+            required: false,
+            options: None,
+            values_source_type: None,
+            values_source_config: None,
+        };
+
+        let parameter_mapping = ParameterMapping {
+            parameter_id: "date_param".to_string(),
+            card_id: 100,
+            target: ParameterTarget::Variable(VariableTarget {
+                target_type: "variable".to_string(),
+                id: "start_date".to_string(),
+            }),
+        };
+
+        let card = CardBuilder::new(
+            MetabaseId::new(100),
+            "Parameterized Card".to_string(),
+            CardType::Question,
+        )
+        .parameters(vec![parameter.clone()])
+        .parameter_mappings(vec![parameter_mapping.clone()])
+        .build();
+
+        assert_eq!(card.parameters.len(), 1);
+        assert_eq!(card.parameters[0].id, "date_param");
+        assert_eq!(card.parameter_mappings.len(), 1);
+        assert_eq!(card.parameter_mappings[0].parameter_id, "date_param");
     }
 }

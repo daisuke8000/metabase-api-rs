@@ -10,6 +10,7 @@ pub mod database;
 pub mod field;
 #[cfg(feature = "query-builder")]
 pub mod mbql;
+pub mod parameter;
 pub mod query;
 pub mod user;
 
@@ -23,5 +24,6 @@ pub use database::{
     TableMetadata,
 };
 pub use field::Field;
+pub use parameter::{Parameter, ParameterMapping, ParameterOption, ParameterTarget};
 pub use query::{DatasetQuery, NativeQuery, QueryResult, QueryStatus};
 pub use user::{HealthStatus, User, UserGroupMembership};
