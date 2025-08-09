@@ -1,18 +1,17 @@
 # metabase-api-rs
 
-⚠️ **Alpha Release** - This is an experimental version. API may change. Not recommended for production use.
+⚠️ **Alpha Release** - API may change. Not recommended for production use.
 
-A simplified and efficient Rust client for the Metabase API.
+A simplified Rust client for the Metabase API.
 
-## Features
+## Installation
 
-- 🚀 **Simple API**: Clean and intuitive interface
-- 🔐 **Automatic Authentication**: Handles session management automatically
-- 🔄 **Retry Logic**: Built-in exponential backoff for failed requests
-- 📦 **Modular Design**: Use only what you need with feature flags
-- 🦀 **Type Safe**: Leverages Rust's type system for safety
-- 🧪 **Well Tested**: 100+ tests with ~80% coverage
-- 📚 **Examples**: Ready-to-use sample code included
+```toml
+[dependencies]
+metabase-api-rs = "0.1.0-alpha.3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+serde_json = "1.0"
+```
 
 ## Quick Start
 
@@ -40,56 +39,22 @@ async fn main() -> Result<()> {
 }
 ```
 
-## Examples
-
-See the `examples/` directory for more comprehensive examples:
-- `simple_example.rs` - Basic authentication and API usage
-- `crud_simple.rs` - CRUD operations on Collections
-- `sql_query_simple.rs` - Execute SQL queries directly
-
-## Installation
-
-Add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-metabase-api-rs = "0.1.0-alpha.1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
-serde_json = "1.0"
-```
-
 ## Features
 
-- `cache` - Enable in-memory caching
-- `performance` - Enable performance optimizations
-- `query-builder` - Enable MBQL query builder
-- `full` - Enable all features
+| Feature | Description |
+|---------|-------------|
+| `cache` | Enable in-memory LRU caching |
+| `performance` | Performance optimizations |
+| `query-builder` | MBQL query builder |
+| `full` | Enable all features |
 
-## Architecture
+## Examples
 
-This library uses a simplified 3-layer architecture:
-
-- **API Layer**: Public interface and client
-- **Core Layer**: Business logic and models
-- **Transport Layer**: HTTP communication and retry logic
+See working examples in the [`examples/`](examples/) directory or on [docs.rs](https://docs.rs/metabase-api-rs).
 
 ## Documentation
 
-For detailed documentation and development guidelines, see the `docs/` directory:
-- [Architecture Overview](docs/ARCHITECTURE.md)
-- [API Structure](docs/API_STRUCTURE.md)
-- [Development Rules](docs/DEVELOPMENT_RULES.md)
-- [Documentation Index](docs/INDEX.md)
-
-## Development
-
-This project follows strict TDD (Test-Driven Development) practices. All development should use the provided Taskfile commands:
-
-```bash
-task dev        # Run development cycle (fmt, build, test)
-task test       # Run all tests
-task check      # Run all quality checks
-```
+Full API documentation is available on [docs.rs](https://docs.rs/metabase-api-rs).
 
 ## License
 
