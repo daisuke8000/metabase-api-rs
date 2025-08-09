@@ -25,7 +25,7 @@ impl SecureToken {
     /// Checks if the token is expired
     pub fn is_expired(&self) -> bool {
         self.expires_at
-            .map_or(false, |expiry| Instant::now() > expiry)
+            .is_some_and(|expiry| Instant::now() > expiry)
     }
 
     /// Gets the token if not expired
@@ -67,7 +67,7 @@ impl AuthManager {
     pub fn is_authenticated(&self) -> bool {
         self.session_token
             .as_ref()
-            .map_or(false, |token| !token.is_expired())
+            .is_some_and(|token| !token.is_expired())
     }
 
     /// Gets the current session token if valid and not expired
