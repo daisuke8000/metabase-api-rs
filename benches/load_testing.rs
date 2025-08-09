@@ -9,7 +9,7 @@ fn bench_load_test_scenarios(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let mut group = c.benchmark_group("load_testing");
-    group.measurement_time(Duration::from_secs(30));
+    group.measurement_time(Duration::from_secs(10)); // Reduced for development efficiency
     group.sample_size(10); // Reduce sample size for load tests
 
     // Test with different numbers of concurrent users
@@ -86,10 +86,10 @@ fn bench_sustained_load(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let mut group = c.benchmark_group("sustained_load");
-    group.measurement_time(Duration::from_secs(60)); // 1 minute sustained load
+    group.measurement_time(Duration::from_secs(15)); // Reduced sustained load time for development
     group.sample_size(10); // Minimum samples for long-running tests
 
-    group.bench_function("steady_50_users", |b| {
+    group.bench_function("steady_20_users", |b| {
         b.iter_custom(|iters| {
             rt.block_on(async {
                 let start = std::time::Instant::now();
@@ -98,8 +98,8 @@ fn bench_sustained_load(c: &mut Criterion) {
                     let loop_start = Instant::now();
 
                     while loop_start.elapsed() < duration {
-                        // Maintain steady load of 50 users
-                        let handles: Vec<_> = (0..50)
+                        // Maintain steady load of 20 users
+                        let handles: Vec<_> = (0..20)
                             .map(|_| {
                                 tokio::spawn(async {
                                     // Simulate API call
@@ -129,21 +129,21 @@ fn bench_spike_load(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let mut group = c.benchmark_group("spike_load");
-    group.measurement_time(Duration::from_secs(20));
+    group.measurement_time(Duration::from_secs(8)); // Reduced for development efficiency
 
     group.bench_function("traffic_spike", |b| {
         b.iter_custom(|iters| {
             rt.block_on(async {
                 let start = std::time::Instant::now();
                 for _ in 0..iters {
-                    // Normal load (10 users)
-                    simulate_user_load(10).await;
+                    // Normal load (5 users)
+                    simulate_user_load(5).await;
 
-                    // Sudden spike (100 users)
-                    simulate_user_load(100).await;
+                    // Sudden spike (20 users)
+                    simulate_user_load(20).await;
 
                     // Return to normal
-                    simulate_user_load(10).await;
+                    simulate_user_load(5).await;
                 }
                 start.elapsed()
             })
@@ -159,7 +159,7 @@ fn bench_rate_limiting(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("rate_limiting");
 
-    for requests_per_second in [10, 50, 100, 200].iter() {
+    for requests_per_second in [5, 10, 20].iter() {
         group.bench_with_input(
             BenchmarkId::new("rps", requests_per_second),
             requests_per_second,
@@ -200,12 +200,12 @@ fn bench_connection_pool_saturation(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let mut group = c.benchmark_group("connection_pool");
-    group.measurement_time(Duration::from_secs(15));
+    group.measurement_time(Duration::from_secs(8)); // Reduced for development efficiency
 
     // Assume pool size of 20
     const POOL_SIZE: usize = 20;
 
-    for num_requests in [10, 20, 50, 100].iter() {
+    for num_requests in [5, 10, 20].iter() {
         group.bench_with_input(
             BenchmarkId::new("pool_saturation", num_requests),
             num_requests,

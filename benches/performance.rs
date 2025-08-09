@@ -10,7 +10,10 @@ use metabase_api_rs::cache::{CacheConfig, CacheLayer};
 fn bench_get_card_no_cache(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
-    c.bench_function("get_card_no_cache", |b| {
+    let mut group = c.benchmark_group("basic_operations");
+    group.measurement_time(Duration::from_secs(5)); // Quick benchmark for development
+
+    group.bench_function("get_card_no_cache", |b| {
         b.iter_custom(|iters| {
             rt.block_on(async {
                 let start = std::time::Instant::now();
@@ -27,6 +30,8 @@ fn bench_get_card_no_cache(c: &mut Criterion) {
             })
         });
     });
+
+    group.finish();
 }
 
 #[cfg(feature = "cache")]
@@ -64,6 +69,7 @@ fn bench_connection_pooling(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let mut group = c.benchmark_group("connection_pooling");
+    group.measurement_time(Duration::from_secs(5)); // Quick benchmark for development
 
     // Without connection pooling (new connection each time)
     group.bench_function("without_pooling", |b| {
@@ -104,6 +110,7 @@ fn bench_batch_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let mut group = c.benchmark_group("batch_operations");
+    group.measurement_time(Duration::from_secs(8)); // Reasonable time for batch testing
 
     for size in [1, 5, 10, 20].iter() {
         // Sequential operations
@@ -150,6 +157,7 @@ fn bench_cache_hit_ratio(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let mut group = c.benchmark_group("cache_hit_ratio");
+    group.measurement_time(Duration::from_secs(6)); // Quick cache benchmark for development
 
     for hit_rate in [0.0, 0.25, 0.5, 0.75, 0.9, 0.99].iter() {
         group.bench_with_input(

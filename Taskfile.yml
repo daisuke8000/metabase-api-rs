@@ -169,11 +169,6 @@ tasks:
     cmds:
       - cargo update
 
-  bench:
-    desc: Run benchmarks
-    cmds:
-      - cargo bench
-
   # ========== Project Management ==========
   
   status:

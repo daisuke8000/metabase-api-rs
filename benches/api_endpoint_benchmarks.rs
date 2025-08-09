@@ -9,7 +9,7 @@ fn bench_authentication(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let mut group = c.benchmark_group("authentication");
-    group.measurement_time(Duration::from_secs(10));
+    group.measurement_time(Duration::from_secs(5));
 
     group.bench_function("email_password_auth", |b| {
         b.iter_custom(|iters| {
@@ -62,7 +62,7 @@ fn bench_crud_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let mut group = c.benchmark_group("crud_operations");
-    group.measurement_time(Duration::from_secs(10));
+    group.measurement_time(Duration::from_secs(5));
 
     // Card operations
     group.bench_function("card_create", |b| {
@@ -139,7 +139,7 @@ fn bench_query_execution(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let mut group = c.benchmark_group("query_execution");
-    group.measurement_time(Duration::from_secs(15));
+    group.measurement_time(Duration::from_secs(8));
 
     // Simple query
     group.bench_function("simple_query", |b| {
@@ -211,9 +211,9 @@ fn bench_concurrent_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let mut group = c.benchmark_group("concurrent_operations");
-    group.measurement_time(Duration::from_secs(20));
+    group.measurement_time(Duration::from_secs(10));
 
-    for concurrency in [1, 5, 10, 20, 50].iter() {
+    for concurrency in [5, 10, 20].iter() {
         group.throughput(Throughput::Elements(*concurrency as u64));
 
         group.bench_with_input(
@@ -279,10 +279,10 @@ fn bench_data_size_impact(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let mut group = c.benchmark_group("data_size_impact");
-    group.measurement_time(Duration::from_secs(15));
+    group.measurement_time(Duration::from_secs(8));
 
-    // Different result set sizes
-    for size in [10, 100, 1000, 10000].iter() {
+    // Different result set sizes - balanced for development environment
+    for size in [10, 50, 200, 500].iter() {
         group.throughput(Throughput::Elements(*size as u64));
 
         group.bench_with_input(BenchmarkId::new("rows_fetched", size), size, |b, &size| {
