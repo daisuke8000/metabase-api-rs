@@ -214,3 +214,46 @@ tasks:
     desc: Complete Docker cleanup (removes all containers, volumes, networks)
     cmds:
       - ./scripts/cleanup-docker.sh
+
+  # ========== Benchmark Tests ==========
+
+  bench:
+    desc: Run all benchmark tests
+    cmds:
+      - echo "🚀 Running all benchmarks..."
+      - cargo bench
+      - echo "✅ All benchmarks completed!"
+
+  bench:quick:
+    desc: Run all benchmarks in quick mode
+    cmds:
+      - echo "🚀 Running all benchmarks (quick mode)..."
+      - cargo bench -- --quick
+      - echo "✅ Quick benchmarks completed!"
+
+  bench:performance:
+    desc: Run performance benchmarks
+    cmds:
+      - echo "🚀 Running performance benchmarks..."
+      - cargo bench --bench performance
+      - echo "✅ Performance benchmarks completed!"
+
+  bench:api:
+    desc: Run API endpoint benchmarks
+    cmds:
+      - echo "🚀 Running API endpoint benchmarks..."
+      - cargo bench --bench api_endpoint_benchmarks
+      - echo "✅ API endpoint benchmarks completed!"
+
+  bench:load:
+    desc: Run load testing benchmarks
+    cmds:
+      - echo "🚀 Running load testing benchmarks..."
+      - cargo bench --bench load_testing
+      - echo "✅ Load testing benchmarks completed!"
+
+  bench:report:
+    desc: Open benchmark report in browser
+    cmds:
+      - echo "📊 Opening benchmark report..."
+      - open target/criterion/report/index.html || echo "Report not found. Run 'task bench' first."

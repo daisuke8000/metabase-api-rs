@@ -60,14 +60,17 @@ async fn main() -> Result<()> {
     println!("{}", "-".repeat(30));
 
     let parameterized_sql = "SELECT * FROM orders WHERE status = {{status}} LIMIT 10";
-    
+
     let mut params = HashMap::new();
     params.insert("status".to_string(), json!("completed"));
-    
+
     println!("Query: {}", parameterized_sql);
     println!("Parameters: status = 'completed'");
 
-    match client.execute_sql_with_params(database_id, parameterized_sql, params).await {
+    match client
+        .execute_sql_with_params(database_id, parameterized_sql, params)
+        .await
+    {
         Ok(result) => {
             println!("✅ Parameterized query executed successfully");
             if let Some(row_count) = result.row_count {
@@ -76,7 +79,7 @@ async fn main() -> Result<()> {
             if let Some(running_time) = result.running_time {
                 println!("   Execution time: {}ms", running_time);
             }
-            
+
             // Show column names if available
             if !result.data.cols.is_empty() {
                 let cols = &result.data.cols;

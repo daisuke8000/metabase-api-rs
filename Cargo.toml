@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["daisuke8000 <daisuke12108000@gmail.com>"]
 description = "A simplified Rust client for the Metabase API"
 repository = "https://github.com/daisuke8000/metabase-api-rs"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["metabase", "api", "client", "analytics", "bi"]
 categories = ["api-bindings", "web-programming::http-client"]
@@ -41,4 +41,16 @@ dotenvy = "0.15"
 [[example]]
 name = "simple_example"
 path = "examples/simple_example.rs"
+
+[[bench]]
+name = "performance"
+harness = false
+
+[[bench]]
+name = "api_endpoint_benchmarks"
+harness = false
+
+[[bench]]
+name = "load_testing"
+harness = false
 
