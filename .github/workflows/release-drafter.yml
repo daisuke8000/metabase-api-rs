@@ -1,11 +1,14 @@
 name: Release Drafter
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    types: [opened, reopened, synchronize]
+  # Manual trigger only to avoid quota usage
+  workflow_dispatch:
+  # Uncomment below to re-enable automatic draft release
+  # push:
+  #   branches:
+  #     - main
+  # pull_request:
+  #   types: [opened, reopened, synchronize]
 
 permissions:
   contents: read

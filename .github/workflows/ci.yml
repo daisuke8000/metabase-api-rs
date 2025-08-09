@@ -1,10 +1,13 @@
 name: CI
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+  # Manual trigger only to avoid quota usage
+  workflow_dispatch:
+  # Uncomment below to re-enable automatic CI
+  # push:
+  #   branches: [ main, develop ]
+  # pull_request:
+  #   branches: [ main ]
 
 env:
   CARGO_TERM_COLOR: always
