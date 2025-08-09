@@ -1,6 +1,6 @@
 [package]
 name = "metabase-api-rs"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 edition = "2021"
 authors = ["daisuke8000 <daisuke12108000@gmail.com>"]
 description = "A simplified Rust client for the Metabase API (Alpha release - experimental)"
@@ -47,6 +47,18 @@ dotenvy = "0.15"
 [[example]]
 name = "simple_example"
 path = "examples/simple_example.rs"
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
+
+[[example]]
+name = "crud_simple"
+path = "examples/crud_simple.rs"
+
+[[example]]
+name = "sql_query_simple"
+path = "examples/sql_query_simple.rs"
 
 [[bench]]
 name = "performance"
