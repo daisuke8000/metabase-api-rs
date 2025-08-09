@@ -1,0 +1,6 @@
+# CODEOWNERS
+# This file defines code ownership for the metabase-api-rs repository
+# All changes require review from the designated owner
+
+# Global owner - all files require approval
+* @daisuke8000
