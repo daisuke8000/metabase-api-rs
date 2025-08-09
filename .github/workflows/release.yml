@@ -15,7 +15,14 @@ jobs:
     - uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: stable
-    - name: Publish to crates.io
-      run: cargo publish
+    - name: Publish to crates.io (dry-run for testing)
+      run: |
+        if [[ "${{ github.repository }}" == *"-test" ]]; then
+          echo "Test repository detected - running dry-run"
+          cargo publish --dry-run
+        else
+          echo "Production repository - publishing to crates.io"
+          cargo publish
+        fi
       env:
         CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
