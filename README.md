@@ -1,5 +1,7 @@
 # metabase-api-rs
 
+⚠️ **Alpha Release** - This is an experimental version. API may change. Not recommended for production use.
+
 A simplified and efficient Rust client for the Metabase API.
 
 ## Features
@@ -51,7 +53,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-metabase-api-rs = "0.1"
+metabase-api-rs = "0.1.0-alpha.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 serde_json = "1.0"
 ```
