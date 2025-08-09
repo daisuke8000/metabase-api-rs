@@ -6,6 +6,7 @@ authors = ["daisuke8000 <daisuke12108000@gmail.com>"]
 description = "A simplified Rust client for the Metabase API (Alpha release - experimental)"
 repository = "https://github.com/daisuke8000/metabase-api-rs"
 homepage = "https://crates.io/crates/metabase-api-rs"
+documentation = "https://docs.rs/metabase-api-rs"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["metabase", "api", "client", "analytics", "bi"]
