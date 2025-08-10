@@ -23,7 +23,6 @@ use crate::cache::{cache_key, CacheConfig, CacheLayer};
 /// The main client for interacting with Metabase API
 #[derive(Clone)]
 pub struct MetabaseClient {
-    pub(super) http_client: HttpClient,
     pub(super) auth_manager: AuthManager,
     pub(super) base_url: String,
     pub(super) service_manager: ServiceManager,
@@ -48,11 +47,10 @@ impl MetabaseClient {
 
         // Create HttpProviderSafe adapter for ServiceManager
         let http_provider: Arc<dyn HttpProviderSafe> =
-            Arc::new(HttpClientAdapter::new(http_client.clone()));
+            Arc::new(HttpClientAdapter::new(http_client));
         let service_manager = ServiceManager::new(http_provider);
 
         Ok(Self {
-            http_client,
             auth_manager,
             base_url,
             service_manager,
@@ -78,11 +76,10 @@ impl MetabaseClient {
 
         // Create HttpProviderSafe adapter for ServiceManager
         let http_provider: Arc<dyn HttpProviderSafe> =
-            Arc::new(HttpClientAdapter::new(http_client.clone()));
+            Arc::new(HttpClientAdapter::new(http_client));
         let service_manager = ServiceManager::new(http_provider);
 
         Ok(Self {
-            http_client,
             auth_manager,
             base_url,
             service_manager,
@@ -497,6 +494,8 @@ impl MetabaseClient {
 
     /// Gets a dashboard by ID
     pub async fn get_dashboard(&self, id: MetabaseId) -> Result<Dashboard> {
+        use crate::core::models::common::DashboardId;
+
         #[cfg(feature = "cache")]
         {
             let cache_key = cache_key("dashboard", id.0);
@@ -505,8 +504,14 @@ impl MetabaseClient {
             }
         }
 
-        let path = format!("/api/dashboard/{}", id.0);
-        let dashboard: Dashboard = self.http_client.get(&path).await?;
+        // Use ServiceManager for layered architecture
+        let dashboard = self
+            .service_manager
+            .dashboard_service()
+            .ok_or_else(|| Error::Config("Dashboard service not available".to_string()))?
+            .get_dashboard(DashboardId(id.0 as i32))
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))?;
 
         #[cfg(feature = "cache")]
         {
@@ -519,12 +524,22 @@ impl MetabaseClient {
 
     /// Lists all dashboards
     pub async fn list_dashboards(&self, pagination: Option<Pagination>) -> Result<Vec<Dashboard>> {
-        let path = if let Some(p) = pagination {
-            format!("/api/dashboard?limit={}&offset={}", p.limit(), p.offset())
-        } else {
-            "/api/dashboard".to_string()
-        };
-        self.http_client.get(&path).await
+        use crate::repository::traits::PaginationParams;
+
+        // Convert Pagination to PaginationParams if needed
+        let pagination_params = pagination.map(|p| PaginationParams {
+            page: None, // Using offset instead of page
+            limit: Some(p.limit() as u32),
+            offset: Some(p.offset() as u32),
+        });
+
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .dashboard_service()
+            .ok_or_else(|| Error::Config("Dashboard service not available".to_string()))?
+            .list_dashboards(pagination_params, None)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Creates a new dashboard
@@ -534,7 +549,14 @@ impl MetabaseClient {
                 "Authentication required to create dashboard".to_string(),
             ));
         }
-        self.http_client.post("/api/dashboard", &dashboard).await
+
+        // Use ServiceManager for layered architecture with validation
+        self.service_manager
+            .dashboard_service()
+            .ok_or_else(|| Error::Config("Dashboard service not available".to_string()))?
+            .create_dashboard(dashboard)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Updates an existing dashboard
@@ -543,6 +565,8 @@ impl MetabaseClient {
         id: MetabaseId,
         updates: serde_json::Value,
     ) -> Result<Dashboard> {
+        use crate::core::models::common::DashboardId;
+
         if !self.is_authenticated() {
             return Err(Error::Authentication(
                 "Authentication required to update dashboard".to_string(),
@@ -555,12 +579,23 @@ impl MetabaseClient {
             self.cache.invalidate(&cache_key);
         }
 
-        let path = format!("/api/dashboard/{}", id.0);
-        self.http_client.put(&path, &updates).await
+        // Convert JSON updates to Dashboard struct
+        let dashboard: Dashboard = serde_json::from_value(updates)
+            .map_err(|e| Error::Validation(format!("Invalid dashboard update: {}", e)))?;
+
+        // Use ServiceManager for layered architecture with validation
+        self.service_manager
+            .dashboard_service()
+            .ok_or_else(|| Error::Config("Dashboard service not available".to_string()))?
+            .update_dashboard(DashboardId(id.0 as i32), dashboard)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Deletes a dashboard
     pub async fn delete_dashboard(&self, id: MetabaseId) -> Result<()> {
+        use crate::core::models::common::DashboardId;
+
         if !self.is_authenticated() {
             return Err(Error::Authentication(
                 "Authentication required to delete dashboard".to_string(),
@@ -573,8 +608,13 @@ impl MetabaseClient {
             self.cache.invalidate(&cache_key);
         }
 
-        let path = format!("/api/dashboard/{}", id.0);
-        self.http_client.delete(&path).await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .dashboard_service()
+            .ok_or_else(|| Error::Config("Dashboard service not available".to_string()))?
+            .delete_dashboard(DashboardId(id.0 as i32))
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     // ==================== Query Operations ====================
@@ -586,13 +626,14 @@ impl MetabaseClient {
                 "Authentication required to execute query".to_string(),
             ));
         }
-        let request = json!({
-            "database": query.database.0,
-            "type": query.query_type,
-            "query": query.query,
-            "parameters": query.parameters
-        });
-        self.http_client.post("/api/dataset", &request).await
+
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .query_service()
+            .ok_or_else(|| Error::Config("Query service not available".to_string()))?
+            .execute_dataset_query(query)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Executes a native SQL query
@@ -606,15 +647,14 @@ impl MetabaseClient {
                 "Authentication required to execute native query".to_string(),
             ));
         }
-        let request = json!({
-            "database": database.0,
-            "type": "native",
-            "native": {
-                "query": native_query.query,
-                "template-tags": native_query.template_tags
-            }
-        });
-        self.http_client.post("/api/dataset", &request).await
+
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .query_service()
+            .ok_or_else(|| Error::Config("Query service not available".to_string()))?
+            .execute_native_query(database.0 as i32, native_query)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     // ==================== Extended Card Operations ====================
@@ -695,8 +735,14 @@ impl MetabaseClient {
             }
         }
 
-        let path = format!("/api/database/{}/metadata", database_id.0);
-        let metadata: DatabaseMetadata = self.http_client.get(&path).await?;
+        // Use ServiceManager for layered architecture
+        let metadata = self
+            .service_manager
+            .database_service()
+            .ok_or_else(|| Error::Config("Database service not available".to_string()))?
+            .get_database_metadata(database_id)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))?;
 
         #[cfg(feature = "cache")]
         {
@@ -721,20 +767,35 @@ impl MetabaseClient {
             self.cache.invalidate(&cache_key);
         }
 
-        let path = format!("/api/database/{}/sync_schema", database_id.0);
-        self.http_client.post(&path, &json!({})).await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .database_service()
+            .ok_or_else(|| Error::Config("Database service not available".to_string()))?
+            .sync_database_schema(database_id)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Get all fields for a database
     pub async fn get_database_fields(&self, database_id: MetabaseId) -> Result<Vec<Field>> {
-        let path = format!("/api/database/{}/fields", database_id.0);
-        self.http_client.get(&path).await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .database_service()
+            .ok_or_else(|| Error::Config("Database service not available".to_string()))?
+            .get_database_fields(database_id)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Get all schemas for a database
     pub async fn get_database_schemas(&self, database_id: MetabaseId) -> Result<Vec<String>> {
-        let path = format!("/api/database/{}/schemas", database_id.0);
-        self.http_client.get(&path).await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .database_service()
+            .ok_or_else(|| Error::Config("Database service not available".to_string()))?
+            .get_database_schemas(database_id)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     // ==================== Dataset Operations ====================
@@ -747,7 +808,13 @@ impl MetabaseClient {
             ));
         }
 
-        self.http_client.post("/api/dataset", &query).await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .query_service()
+            .ok_or_else(|| Error::Config("Query service not available".to_string()))?
+            .execute_raw_query(query)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Execute a native query through the dataset endpoint
@@ -758,7 +825,13 @@ impl MetabaseClient {
             ));
         }
 
-        self.http_client.post("/api/dataset/native", &query).await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .query_service()
+            .ok_or_else(|| Error::Config("Query service not available".to_string()))?
+            .execute_raw_query(query)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Execute a pivot dataset query
@@ -769,7 +842,13 @@ impl MetabaseClient {
             ));
         }
 
-        self.http_client.post("/api/dataset/pivot", &query).await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .query_service()
+            .ok_or_else(|| Error::Config("Query service not available".to_string()))?
+            .execute_pivot_query(query)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Export dataset query results
@@ -780,8 +859,13 @@ impl MetabaseClient {
             ));
         }
 
-        let path = format!("/api/dataset/{}", format.as_str());
-        self.http_client.post_binary(&path, &query).await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .query_service()
+            .ok_or_else(|| Error::Config("Query service not available".to_string()))?
+            .export_query(format.as_str(), query)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     // ==================== MBQL Query Operations ====================
@@ -800,7 +884,14 @@ impl MetabaseClient {
         }
 
         let dataset_query = query.to_dataset_query(database_id);
-        self.http_client.post("/api/dataset", &dataset_query).await
+
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .query_service()
+            .ok_or_else(|| Error::Config("Query service not available".to_string()))?
+            .execute_dataset_query(dataset_query)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Export MBQL query results in specified format
@@ -818,8 +909,18 @@ impl MetabaseClient {
         }
 
         let dataset_query = query.to_dataset_query(database_id);
-        let path = format!("/api/dataset/{}", format.as_str());
-        self.http_client.post_binary(&path, &dataset_query).await
+
+        // Use ServiceManager for layered architecture
+        // Convert dataset query to JSON Value for export
+        let query_value = serde_json::to_value(&dataset_query)
+            .map_err(|e| Error::Serialization(e.to_string()))?;
+
+        self.service_manager
+            .query_service()
+            .ok_or_else(|| Error::Config("Query service not available".to_string()))?
+            .export_query(format.as_str(), query_value)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     // ==================== SQL Convenience Methods ====================
@@ -867,7 +968,12 @@ impl MetabaseClient {
             }
         });
 
-        let path = format!("/api/dataset/{}", format.as_str());
-        self.http_client.post_binary(&path, &request).await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .query_service()
+            .ok_or_else(|| Error::Config("Query service not available".to_string()))?
+            .export_query(format.as_str(), request)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 }

@@ -139,7 +139,6 @@ tasks:
     desc: Comprehensive testing with all combinations
     cmds:
       - task: test:features
-      - task: integration:run
       - echo "✅ Comprehensive testing completed!"
 
   coverage:
@@ -150,17 +149,17 @@ tasks:
   # ========== Integration Testing ==========
   
   integration:run:
-    desc: Run integration tests with Docker lifecycle
+    desc: Run E2E tests with Docker Metabase instance
     cmds:
       - ./scripts/cleanup-docker.sh
       - ./scripts/setup-integration-env.sh
-      - cargo test -- --ignored --nocapture
+      - RUN_E2E_TESTS=true cargo test --test e2e_tests -- --nocapture
       - ./scripts/cleanup-docker.sh
 
   integration:quick:
-    desc: Run integration tests (assumes Docker is running)
+    desc: Run E2E tests (assumes Docker is running)
     cmds:
-      - cargo test -- --ignored --nocapture
+      - RUN_E2E_TESTS=true cargo test --test e2e_tests -- --nocapture
 
   # ========== TDD Workflow ==========
   

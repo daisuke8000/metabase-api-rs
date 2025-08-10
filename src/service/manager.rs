@@ -3,10 +3,14 @@
 use crate::repository::card::{CardRepository, HttpCardRepository};
 use crate::repository::collection::{CollectionRepository, HttpCollectionRepository};
 use crate::repository::dashboard::{DashboardRepository, HttpDashboardRepository};
+use crate::repository::database::{DatabaseRepository, HttpDatabaseRepository};
+use crate::repository::query::{HttpQueryRepository, QueryRepository};
 use crate::service::auth::{AuthService, HttpAuthService};
 use crate::service::card::{CardService, HttpCardService};
 use crate::service::collection::{CollectionService, HttpCollectionService};
 use crate::service::dashboard::{DashboardService, HttpDashboardService};
+use crate::service::database::{DatabaseService, HttpDatabaseService};
+use crate::service::query::{HttpQueryService, QueryService};
 use crate::transport::http_provider_safe::HttpProviderSafe;
 use std::sync::Arc;
 
@@ -17,6 +21,8 @@ pub struct ServiceManager {
     card_service: Arc<dyn CardService>,
     collection_service: Arc<dyn CollectionService>,
     dashboard_service: Arc<dyn DashboardService>,
+    database_service: Arc<dyn DatabaseService>,
+    query_service: Arc<dyn QueryService>,
 }
 
 impl ServiceManager {
@@ -32,17 +38,25 @@ impl ServiceManager {
             Arc::new(HttpCollectionRepository::new(http_provider.clone()));
         let dashboard_repo: Arc<dyn DashboardRepository> =
             Arc::new(HttpDashboardRepository::new(http_provider.clone()));
+        let database_repo: Arc<dyn DatabaseRepository> =
+            Arc::new(HttpDatabaseRepository::new(http_provider.clone()));
+        let query_repo: Arc<dyn QueryRepository> =
+            Arc::new(HttpQueryRepository::new(http_provider.clone()));
 
         // Create services with repositories
         let card_service = Arc::new(HttpCardService::new(card_repo));
         let collection_service = Arc::new(HttpCollectionService::new(collection_repo));
         let dashboard_service = Arc::new(HttpDashboardService::new(dashboard_repo));
+        let database_service = Arc::new(HttpDatabaseService::new(database_repo));
+        let query_service = Arc::new(HttpQueryService::new(query_repo));
 
         Self {
             auth_service,
             card_service,
             collection_service,
             dashboard_service,
+            database_service,
+            query_service,
         }
     }
 
@@ -64,6 +78,16 @@ impl ServiceManager {
     /// Get the dashboard service
     pub fn dashboard_service(&self) -> Option<Arc<dyn DashboardService>> {
         Some(self.dashboard_service.clone())
+    }
+
+    /// Get the database service
+    pub fn database_service(&self) -> Option<Arc<dyn DatabaseService>> {
+        Some(self.database_service.clone())
+    }
+
+    /// Get the query service
+    pub fn query_service(&self) -> Option<Arc<dyn QueryService>> {
+        Some(self.query_service.clone())
     }
 }
 

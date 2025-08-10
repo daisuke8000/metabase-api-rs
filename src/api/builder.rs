@@ -105,11 +105,10 @@ impl ClientBuilder {
         use std::sync::Arc;
 
         let http_provider: Arc<dyn HttpProviderSafe> =
-            Arc::new(HttpClientAdapter::new(http_client.clone()));
+            Arc::new(HttpClientAdapter::new(http_client));
         let service_manager = ServiceManager::new(http_provider);
 
         Ok(MetabaseClient {
-            http_client,
             auth_manager,
             base_url: self.base_url,
             service_manager,
