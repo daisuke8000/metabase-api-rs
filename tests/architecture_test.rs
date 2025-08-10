@@ -19,44 +19,74 @@ use serde_json::json;
 fn test_architecture_layers_wiring() {
     use metabase_api_rs::service::manager::ServiceManager;
     use std::sync::Arc;
-    
+
     // Create a mock HTTP provider
     struct MockHttpProvider;
-    
+
     #[async_trait::async_trait]
     impl metabase_api_rs::transport::http_provider_safe::HttpProviderSafe for MockHttpProvider {
         async fn get_json(&self, _path: &str) -> metabase_api_rs::Result<serde_json::Value> {
             Ok(serde_json::Value::Null)
         }
-        
-        async fn post_json(&self, _path: &str, _body: serde_json::Value) -> metabase_api_rs::Result<serde_json::Value> {
+
+        async fn post_json(
+            &self,
+            _path: &str,
+            _body: serde_json::Value,
+        ) -> metabase_api_rs::Result<serde_json::Value> {
             Ok(serde_json::Value::Null)
         }
-        
-        async fn put_json(&self, _path: &str, _body: serde_json::Value) -> metabase_api_rs::Result<serde_json::Value> {
+
+        async fn put_json(
+            &self,
+            _path: &str,
+            _body: serde_json::Value,
+        ) -> metabase_api_rs::Result<serde_json::Value> {
             Ok(serde_json::Value::Null)
         }
-        
+
         async fn delete_json(&self, _path: &str) -> metabase_api_rs::Result<serde_json::Value> {
             Ok(serde_json::Value::Null)
         }
-        
-        async fn post_binary(&self, _path: &str, _body: serde_json::Value) -> metabase_api_rs::Result<Vec<u8>> {
+
+        async fn post_binary(
+            &self,
+            _path: &str,
+            _body: serde_json::Value,
+        ) -> metabase_api_rs::Result<Vec<u8>> {
             Ok(vec![])
         }
     }
-    
+
     // This actually creates the entire architecture stack
     let http_provider = Arc::new(MockHttpProvider);
     let service_manager = ServiceManager::new(http_provider);
-    
+
     // Verify all services are properly wired
-    assert!(service_manager.card_service().is_some(), "Card service must be available");
-    assert!(service_manager.collection_service().is_some(), "Collection service must be available");
-    assert!(service_manager.dashboard_service().is_some(), "Dashboard service must be available");
-    assert!(service_manager.database_service().is_some(), "Database service must be available");
-    assert!(service_manager.query_service().is_some(), "Query service must be available");
-    assert!(service_manager.auth_service().is_some(), "Auth service must be available");
+    assert!(
+        service_manager.card_service().is_some(),
+        "Card service must be available"
+    );
+    assert!(
+        service_manager.collection_service().is_some(),
+        "Collection service must be available"
+    );
+    assert!(
+        service_manager.dashboard_service().is_some(),
+        "Dashboard service must be available"
+    );
+    assert!(
+        service_manager.database_service().is_some(),
+        "Database service must be available"
+    );
+    assert!(
+        service_manager.query_service().is_some(),
+        "Query service must be available"
+    );
+    assert!(
+        service_manager.auth_service().is_some(),
+        "Auth service must be available"
+    );
 }
 
 // ==========================================
@@ -86,7 +116,10 @@ async fn test_complete_architecture_stack() {
         .authenticate(Credentials::email_password("test@example.com", "password"))
         .await;
 
-    assert!(result.is_ok(), "Authentication should work through all layers");
+    assert!(
+        result.is_ok(),
+        "Authentication should work through all layers"
+    );
 }
 
 /// Test Card operations through the layered architecture
@@ -96,7 +129,7 @@ async fn test_card_operations_through_layers() {
 
     // Setup mocks
     setup_auth_mock(&mut server).await;
-    
+
     let _mock_get = server
         .mock("GET", "/api/card/1")
         .with_status(200)
