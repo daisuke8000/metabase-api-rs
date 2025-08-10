@@ -49,6 +49,28 @@ pub trait CardService: Service {
 
     /// Validate card data
     async fn validate_card(&self, card: &Card) -> ServiceResult<()>;
+    
+    /// Execute a card's query
+    async fn execute_card_query(
+        &self,
+        id: CardId,
+        parameters: Option<serde_json::Value>,
+    ) -> ServiceResult<crate::core::models::QueryResult>;
+    
+    /// Export card query results
+    async fn export_card_query(
+        &self,
+        id: CardId,
+        format: crate::core::models::common::ExportFormat,
+        parameters: Option<serde_json::Value>,
+    ) -> ServiceResult<Vec<u8>>;
+    
+    /// Execute a pivot query for a card
+    async fn execute_card_pivot_query(
+        &self,
+        id: CardId,
+        parameters: Option<serde_json::Value>,
+    ) -> ServiceResult<crate::core::models::QueryResult>;
 }
 
 /// HTTP implementation of CardService
@@ -193,5 +215,51 @@ impl CardService for HttpCardService {
 
     async fn validate_card(&self, card: &Card) -> ServiceResult<()> {
         self.validate_card_rules(card)
+    }
+    
+    async fn execute_card_query(
+        &self,
+        id: CardId,
+        parameters: Option<serde_json::Value>,
+    ) -> ServiceResult<crate::core::models::QueryResult> {
+        // Check if card exists
+        self.repository.get(&id).await.map_err(ServiceError::from)?;
+        
+        // Execute query via repository
+        self.repository
+            .execute_query(&id, parameters)
+            .await
+            .map_err(ServiceError::from)
+    }
+    
+    async fn export_card_query(
+        &self,
+        id: CardId,
+        format: crate::core::models::common::ExportFormat,
+        parameters: Option<serde_json::Value>,
+    ) -> ServiceResult<Vec<u8>> {
+        // Check if card exists
+        self.repository.get(&id).await.map_err(ServiceError::from)?;
+        
+        // Export query via repository
+        self.repository
+            .export_query(&id, format, parameters)
+            .await
+            .map_err(ServiceError::from)
+    }
+    
+    async fn execute_card_pivot_query(
+        &self,
+        id: CardId,
+        parameters: Option<serde_json::Value>,
+    ) -> ServiceResult<crate::core::models::QueryResult> {
+        // Check if card exists
+        self.repository.get(&id).await.map_err(ServiceError::from)?;
+        
+        // Execute pivot query via repository
+        self.repository
+            .execute_pivot_query(&id, parameters)
+            .await
+            .map_err(ServiceError::from)
     }
 }

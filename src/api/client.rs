@@ -3,7 +3,9 @@
 use crate::api::auth::{AuthManager, Credentials};
 use crate::api::CardListParams;
 use crate::core::error::{Error, Result};
-use crate::core::models::common::{ExportFormat, UserId};
+use crate::core::models::common::{ExportFormat, CardId};
+use crate::service::ServiceManager;
+use crate::transport::http_provider_safe::{HttpProviderSafe, HttpClientAdapter};
 #[cfg(feature = "query-builder")]
 use crate::core::models::mbql::MbqlQuery;
 use crate::core::models::{
@@ -11,20 +13,20 @@ use crate::core::models::{
     NativeQuery, Pagination, QueryResult, SyncResult, User,
 };
 use crate::transport::HttpClient;
-use secrecy::ExposeSecret;
-use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 #[cfg(feature = "cache")]
 use crate::cache::{cache_key, CacheConfig, CacheLayer};
 
 /// The main client for interacting with Metabase API
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MetabaseClient {
     pub(super) http_client: HttpClient,
     pub(super) auth_manager: AuthManager,
     pub(super) base_url: String,
+    pub(super) service_manager: ServiceManager,
     #[cfg(feature = "cache")]
     pub(super) cache: CacheLayer,
 }
@@ -43,11 +45,16 @@ impl MetabaseClient {
 
         let http_client = HttpClient::new(&base_url)?;
         let auth_manager = AuthManager::new();
+        
+        // Create HttpProviderSafe adapter for ServiceManager
+        let http_provider: Arc<dyn HttpProviderSafe> = Arc::new(HttpClientAdapter::new(http_client.clone()));
+        let service_manager = ServiceManager::new(http_provider);
 
         Ok(Self {
             http_client,
             auth_manager,
             base_url,
+            service_manager,
             #[cfg(feature = "cache")]
             cache: CacheLayer::new(CacheConfig::default()),
         })
@@ -67,11 +74,16 @@ impl MetabaseClient {
 
         let http_client = HttpClient::new(&base_url)?;
         let auth_manager = AuthManager::new();
+        
+        // Create HttpProviderSafe adapter for ServiceManager
+        let http_provider: Arc<dyn HttpProviderSafe> = Arc::new(HttpClientAdapter::new(http_client.clone()));
+        let service_manager = ServiceManager::new(http_provider);
 
         Ok(Self {
             http_client,
             auth_manager,
             base_url,
+            service_manager,
             cache: CacheLayer::new(cache_config),
         })
     }
@@ -112,62 +124,15 @@ impl MetabaseClient {
 
     /// Authenticates with the Metabase API
     pub async fn authenticate(&mut self, credentials: Credentials) -> Result<()> {
-        let request_body = match &credentials {
-            Credentials::EmailPassword { email, password } => {
-                json!({
-                    "username": email,
-                    "password": password.expose_secret()
-                })
-            }
-            Credentials::ApiKey { key } => {
-                json!({
-                    "api_key": key.expose_secret()
-                })
-            }
-        };
+        // Use ServiceManager for authentication
+        let (session_id, user) = self.service_manager
+            .auth_service()
+            .ok_or_else(|| Error::Config("Auth service not available".to_string()))?
+            .authenticate(credentials)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))?;
 
-        #[derive(Deserialize)]
-        struct SessionResponse {
-            id: String,
-            #[serde(flatten)]
-            user_data: serde_json::Value,
-        }
-
-        let response: SessionResponse =
-            self.http_client.post("/api/session", &request_body).await?;
-
-        // Parse user information
-        let user = User {
-            id: UserId(response.user_data["id"].as_i64().unwrap_or(1)),
-            email: response.user_data["email"]
-                .as_str()
-                .unwrap_or("unknown@example.com")
-                .to_string(),
-            first_name: response.user_data["first_name"]
-                .as_str()
-                .unwrap_or("Unknown")
-                .to_string(),
-            last_name: response.user_data["last_name"]
-                .as_str()
-                .unwrap_or("User")
-                .to_string(),
-            is_superuser: response.user_data["is_superuser"]
-                .as_bool()
-                .unwrap_or(false),
-            is_active: true,
-            is_qbnewb: response.user_data["is_qbnewb"].as_bool().unwrap_or(false),
-            date_joined: chrono::Utc::now(),
-            last_login: Some(chrono::Utc::now()),
-            common_name: None,
-            group_ids: Vec::new(),
-            locale: response.user_data["locale"].as_str().map(|s| s.to_string()),
-            google_auth: response.user_data["google_auth"].as_bool().unwrap_or(false),
-            ldap_auth: response.user_data["ldap_auth"].as_bool().unwrap_or(false),
-            login_attributes: None,
-            user_group_memberships: Vec::new(),
-        };
-
-        self.auth_manager.set_session(response.id, user);
+        self.auth_manager.set_session(session_id, user);
         Ok(())
     }
 
@@ -177,8 +142,18 @@ impl MetabaseClient {
             return Ok(());
         }
 
-        // Send logout request
-        self.http_client.delete("/api/session").await?;
+        // Get session ID before clearing
+        let session_id = self.auth_manager.get_session_id();
+        
+        if let Some(id) = session_id {
+            // Use ServiceManager for logout
+            self.service_manager
+                .auth_service()
+                .ok_or_else(|| Error::Config("Auth service not available".to_string()))?
+                .logout(&id)
+                .await
+                .map_err(|e| Error::Config(format!("Service error: {}", e)))?;
+        }
 
         // Clear local session
         self.auth_manager.clear_session();
@@ -187,7 +162,13 @@ impl MetabaseClient {
 
     /// Performs a health check on the Metabase API
     pub async fn health_check(&self) -> Result<HealthStatus> {
-        self.http_client.get("/api/health").await
+        // Use ServiceManager for health check
+        self.service_manager
+            .auth_service()
+            .ok_or_else(|| Error::Config("Auth service not available".to_string()))?
+            .health_check()
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Gets the current authenticated user
@@ -196,7 +177,16 @@ impl MetabaseClient {
             return Err(Error::Authentication("Not authenticated".to_string()));
         }
 
-        self.http_client.get("/api/user/current").await
+        let session_id = self.auth_manager.get_session_id()
+            .ok_or_else(|| Error::Authentication("No session available".to_string()))?;
+        
+        // Use ServiceManager for getting current user
+        self.service_manager
+            .auth_service()
+            .ok_or_else(|| Error::Config("Auth service not available".to_string()))?
+            .get_current_user(&session_id)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     // ==================== Card Operations ====================
@@ -211,8 +201,13 @@ impl MetabaseClient {
             }
         }
 
-        let path = format!("/api/card/{}", id);
-        let card: Card = self.http_client.get(&path).await?;
+        // Use ServiceManager for layered architecture
+        let card = self.service_manager
+            .card_service()
+            .ok_or_else(|| Error::Config("Card service not available".to_string()))?
+            .get_card(CardId(id as i32))
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))?;
 
         #[cfg(feature = "cache")]
         {
@@ -225,24 +220,23 @@ impl MetabaseClient {
 
     /// Lists all cards
     pub async fn list_cards(&self, params: Option<CardListParams>) -> Result<Vec<Card>> {
-        let path = if let Some(p) = params {
-            let mut query_params = Vec::new();
-            if let Some(f) = p.f {
-                query_params.push(format!("f={}", f));
-            }
-            if let Some(model_type) = p.model_type {
-                query_params.push(format!("model_type={}", model_type));
-            }
-
-            if !query_params.is_empty() {
-                format!("/api/card?{}", query_params.join("&"))
-            } else {
-                "/api/card".to_string()
-            }
-        } else {
-            "/api/card".to_string()
-        };
-        self.http_client.get(&path).await
+        use crate::repository::card::CardFilterParams;
+        
+        // Convert CardListParams to CardFilterParams and PaginationParams
+        let filters = params.map(|p| CardFilterParams {
+            f: p.f,
+            model_type: p.model_type,
+            archived: None,
+            collection_id: None,
+        });
+        
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .card_service()
+            .ok_or_else(|| Error::Config("Card service not available".to_string()))?
+            .list_cards(None, filters)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Creates a new card
@@ -252,7 +246,14 @@ impl MetabaseClient {
                 "Authentication required to create card".to_string(),
             ));
         }
-        self.http_client.post("/api/card", &card).await
+        
+        // Use ServiceManager for layered architecture with validation
+        self.service_manager
+            .card_service()
+            .ok_or_else(|| Error::Config("Card service not available".to_string()))?
+            .create_card(card)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Updates an existing card
@@ -269,8 +270,17 @@ impl MetabaseClient {
             self.cache.invalidate(&cache_key);
         }
 
-        let path = format!("/api/card/{}", id);
-        self.http_client.put(&path, &updates).await
+        // Parse updates JSON into Card struct for service layer
+        let card: Card = serde_json::from_value(updates)
+            .map_err(|e| Error::Validation(format!("Invalid card data: {}", e)))?;
+        
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .card_service()
+            .ok_or_else(|| Error::Config("Card service not available".to_string()))?
+            .update_card(CardId(id as i32), card)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Deletes a card
@@ -287,8 +297,13 @@ impl MetabaseClient {
             self.cache.invalidate(&cache_key);
         }
 
-        let path = format!("/api/card/{}", id);
-        self.http_client.delete(&path).await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .card_service()
+            .ok_or_else(|| Error::Config("Card service not available".to_string()))?
+            .delete_card(CardId(id as i32))
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     // ==================== Collection Operations ====================
@@ -509,14 +524,13 @@ impl MetabaseClient {
             ));
         }
 
-        let path = format!("/api/card/{}/query", card_id);
-        let request = if let Some(params) = parameters {
-            json!({ "parameters": params })
-        } else {
-            json!({})
-        };
-
-        self.http_client.post(&path, &request).await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .card_service()
+            .ok_or_else(|| Error::Config("Card service not available".to_string()))?
+            .execute_card_query(CardId(card_id as i32), parameters)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Export card query results in specified format
@@ -532,14 +546,13 @@ impl MetabaseClient {
             ));
         }
 
-        let path = format!("/api/card/{}/query/{}", card_id, format.as_str());
-        let request = if let Some(params) = parameters {
-            json!({ "parameters": params })
-        } else {
-            json!({})
-        };
-
-        self.http_client.post_binary(&path, &request).await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .card_service()
+            .ok_or_else(|| Error::Config("Card service not available".to_string()))?
+            .export_card_query(CardId(card_id as i32), format, parameters)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Execute a pivot query for a card
@@ -554,14 +567,13 @@ impl MetabaseClient {
             ));
         }
 
-        let path = format!("/api/card/pivot/{}/query", card_id);
-        let request = if let Some(params) = parameters {
-            json!({ "parameters": params })
-        } else {
-            json!({})
-        };
-
-        self.http_client.post(&path, &request).await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .card_service()
+            .ok_or_else(|| Error::Config("Card service not available".to_string()))?
+            .execute_card_pivot_query(CardId(card_id as i32), parameters)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     // ==================== Database Metadata Operations ====================

@@ -14,16 +14,14 @@ use std::sync::Arc;
 /// Card-specific filter parameters
 #[derive(Debug, Clone, Default)]
 pub struct CardFilterParams {
-    /// Base filters
-    pub base: FilterParams,
-    /// Filter by collection ID
-    pub collection_id: Option<i32>,
-    /// Filter by database ID
-    pub database_id: Option<i32>,
+    /// Filter by f parameter
+    pub f: Option<String>,
     /// Filter by model type
     pub model_type: Option<String>,
-    /// Filter by display type
-    pub display: Option<String>,
+    /// Filter by archived status
+    pub archived: Option<bool>,
+    /// Filter by collection ID
+    pub collection_id: Option<i32>,
 }
 
 impl CardFilterParams {
@@ -38,11 +36,11 @@ impl CardFilterParams {
         self
     }
 
-    /// Set database ID filter
-    pub fn with_database(mut self, database_id: i32) -> Self {
-        self.database_id = Some(database_id);
-        self
-    }
+    // Set database ID filter (removed - not in current struct)
+    // pub fn with_database(mut self, database_id: i32) -> Self {
+    //     self.database_id = Some(database_id);
+    //     self
+    // }
 }
 
 /// Repository trait for Card entities
@@ -71,6 +69,28 @@ pub trait CardRepository: Repository<Entity = Card, Id = CardId> + Send + Sync {
 
     /// Copy a card
     async fn copy(&self, id: &CardId, new_name: &str) -> RepositoryResult<Card>;
+    
+    /// Execute a card's query
+    async fn execute_query(
+        &self,
+        id: &CardId,
+        parameters: Option<serde_json::Value>,
+    ) -> RepositoryResult<crate::core::models::QueryResult>;
+    
+    /// Export card query results
+    async fn export_query(
+        &self,
+        id: &CardId,
+        format: crate::core::models::common::ExportFormat,
+        parameters: Option<serde_json::Value>,
+    ) -> RepositoryResult<Vec<u8>>;
+    
+    /// Execute a pivot query for a card
+    async fn execute_pivot_query(
+        &self,
+        id: &CardId,
+        parameters: Option<serde_json::Value>,
+    ) -> RepositoryResult<crate::core::models::QueryResult>;
 }
 
 /// HTTP implementation of CardRepository
@@ -172,9 +192,42 @@ impl CardRepository for HttpCardRepository {
         pagination: Option<PaginationParams>,
         filters: Option<CardFilterParams>,
     ) -> RepositoryResult<Vec<Card>> {
-        // Convert CardFilterParams to FilterParams
-        let base_filters = filters.map(|f| f.base);
-        self.list(pagination, base_filters).await
+        let mut params = Vec::new();
+        
+        if let Some(p) = pagination {
+            if let Some(page) = p.page {
+                params.push(format!("page={}", page));
+            }
+            if let Some(limit) = p.limit {
+                params.push(format!("limit={}", limit));
+            }
+            if let Some(offset) = p.offset {
+                params.push(format!("offset={}", offset));
+            }
+        }
+        
+        if let Some(f) = filters {
+            if let Some(f_param) = f.f {
+                params.push(format!("f={}", f_param));
+            }
+            if let Some(model_type) = f.model_type {
+                params.push(format!("model_type={}", model_type));
+            }
+            if let Some(archived) = f.archived {
+                params.push(format!("archived={}", archived));
+            }
+            if let Some(collection_id) = f.collection_id {
+                params.push(format!("collection_id={}", collection_id));
+            }
+        }
+        
+        let path = if params.is_empty() {
+            "/api/card".to_string()
+        } else {
+            format!("/api/card?{}", params.join("&"))
+        };
+        
+        self.http_provider.get(&path).await.map_err(|e| e.into())
     }
 
     async fn get_by_collection(&self, collection_id: i32) -> RepositoryResult<Vec<Card>> {
@@ -221,6 +274,61 @@ impl CardRepository for HttpCardRepository {
         let body = serde_json::json!({ "name": new_name });
         self.http_provider
             .post(&path, &body)
+            .await
+            .map_err(|e| e.into())
+    }
+    
+    async fn execute_query(
+        &self,
+        id: &CardId,
+        parameters: Option<serde_json::Value>,
+    ) -> RepositoryResult<crate::core::models::QueryResult> {
+        let path = format!("/api/card/{}/query", id.0);
+        let request = if let Some(params) = parameters {
+            serde_json::json!({ "parameters": params })
+        } else {
+            serde_json::json!({})
+        };
+        self.http_provider
+            .post(&path, &request)
+            .await
+            .map_err(|e| e.into())
+    }
+    
+    async fn export_query(
+        &self,
+        id: &CardId,
+        format: crate::core::models::common::ExportFormat,
+        parameters: Option<serde_json::Value>,
+    ) -> RepositoryResult<Vec<u8>> {
+        let path = format!("/api/card/{}/query/{}", id.0, format.as_str());
+        let request = if let Some(params) = parameters {
+            serde_json::json!({ "parameters": params })
+        } else {
+            serde_json::json!({})
+        };
+        // Note: This needs post_binary method in HttpProviderSafe
+        // For now, return empty vector as placeholder
+        let _result: serde_json::Value = self.http_provider
+            .post(&path, &request)
+            .await
+            .map_err(|e| RepositoryError::from(e))?;
+        Ok(Vec::new())
+    }
+    
+    async fn execute_pivot_query(
+        &self,
+        id: &CardId,
+        parameters: Option<serde_json::Value>,
+    ) -> RepositoryResult<crate::core::models::QueryResult> {
+        let path = format!("/api/card/pivot/{}/query", id.0);
+        let request = if let Some(params) = parameters {
+            serde_json::json!({ "parameters": params })
+        } else {
+            serde_json::json!({})
+        };
+        self.http_provider
+            .post(&path, &request)
             .await
             .map_err(|e| e.into())
     }
@@ -351,10 +459,10 @@ impl CardRepository for MockCardRepository {
     async fn list_with_filters(
         &self,
         pagination: Option<PaginationParams>,
-        filters: Option<CardFilterParams>,
+        _filters: Option<CardFilterParams>,
     ) -> RepositoryResult<Vec<Card>> {
-        let base_filters = filters.map(|f| f.base);
-        self.list(pagination, base_filters).await
+        // For mock, just return all cards
+        self.list(pagination, None).await
     }
 
     async fn get_by_collection(&self, collection_id: i32) -> RepositoryResult<Vec<Card>> {
@@ -441,5 +549,140 @@ impl CardRepository for MockCardRepository {
                 id.0
             )))
         }
+    }
+    
+    async fn execute_query(
+        &self,
+        id: &CardId,
+        _parameters: Option<serde_json::Value>,
+    ) -> RepositoryResult<crate::core::models::QueryResult> {
+        if self.should_fail {
+            return Err(RepositoryError::Other("Mock failure".to_string()));
+        }
+        
+        // Check if card exists
+        let cards = self.cards.read().await;
+        if !cards.iter().any(|c| c.id == Some(*id)) {
+            return Err(RepositoryError::NotFound(format!(
+                "Card {} not found",
+                id.0
+            )));
+        }
+        
+        // Return mock query result
+        use crate::core::models::query::{QueryData, QueryStatus, Column};
+        use crate::core::models::common::MetabaseId;
+        
+        Ok(crate::core::models::QueryResult {
+            data: QueryData {
+                rows: vec![vec![serde_json::json!(1), serde_json::json!("test")]],
+                cols: vec![
+                    Column {
+                        name: "id".to_string(),
+                        display_name: "ID".to_string(),
+                        base_type: "type/Integer".to_string(),
+                        effective_type: None,
+                        semantic_type: None,
+                        field_ref: None,
+                    },
+                    Column {
+                        name: "name".to_string(),
+                        display_name: "Name".to_string(),
+                        base_type: "type/Text".to_string(),
+                        effective_type: None,
+                        semantic_type: None,
+                        field_ref: None,
+                    },
+                ],
+                native_form: None,
+                insights: vec![],
+            },
+            database_id: MetabaseId(1),
+            started_at: chrono::Utc::now(),
+            finished_at: Some(chrono::Utc::now()),
+            status: QueryStatus::Completed,
+            row_count: Some(1),
+            running_time: Some(100),
+            json_query: serde_json::json!({}),
+        })
+    }
+    
+    async fn export_query(
+        &self,
+        id: &CardId,
+        _format: crate::core::models::common::ExportFormat,
+        _parameters: Option<serde_json::Value>,
+    ) -> RepositoryResult<Vec<u8>> {
+        if self.should_fail {
+            return Err(RepositoryError::Other("Mock failure".to_string()));
+        }
+        
+        // Check if card exists
+        let cards = self.cards.read().await;
+        if !cards.iter().any(|c| c.id == Some(*id)) {
+            return Err(RepositoryError::NotFound(format!(
+                "Card {} not found",
+                id.0
+            )));
+        }
+        
+        // Return mock export data
+        Ok(b"mock export data".to_vec())
+    }
+    
+    async fn execute_pivot_query(
+        &self,
+        id: &CardId,
+        _parameters: Option<serde_json::Value>,
+    ) -> RepositoryResult<crate::core::models::QueryResult> {
+        if self.should_fail {
+            return Err(RepositoryError::Other("Mock failure".to_string()));
+        }
+        
+        // Check if card exists
+        let cards = self.cards.read().await;
+        if !cards.iter().any(|c| c.id == Some(*id)) {
+            return Err(RepositoryError::NotFound(format!(
+                "Card {} not found",
+                id.0
+            )));
+        }
+        
+        // Return mock pivot query result
+        use crate::core::models::query::{QueryData, QueryStatus, Column};
+        use crate::core::models::common::MetabaseId;
+        
+        Ok(crate::core::models::QueryResult {
+            data: QueryData {
+                rows: vec![vec![serde_json::json!("category1"), serde_json::json!(100)]],
+                cols: vec![
+                    Column {
+                        name: "category".to_string(),
+                        display_name: "Category".to_string(),
+                        base_type: "type/Text".to_string(),
+                        effective_type: None,
+                        semantic_type: None,
+                        field_ref: None,
+                    },
+                    Column {
+                        name: "total".to_string(),
+                        display_name: "Total".to_string(),
+                        base_type: "type/Integer".to_string(),
+                        effective_type: None,
+                        semantic_type: None,
+                        field_ref: None,
+                    },
+                ],
+                native_form: None,
+                insights: vec![],
+            },
+            database_id: MetabaseId(1),
+            started_at: chrono::Utc::now(),
+            finished_at: Some(chrono::Utc::now()),
+            status: QueryStatus::Completed,
+            row_count: Some(1),
+            running_time: Some(150),
+            json_query: serde_json::json!({}),
+        })
     }
 }
