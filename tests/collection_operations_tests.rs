@@ -160,9 +160,30 @@ async fn test_update_collection() {
         .await
         .expect("Failed to authenticate");
 
+    // Mock GET request for existing collection (API layer fetches for merge)
+    let _get_mock = server
+        .mock("GET", "/api/collection/1")
+        .expect(2) // Expect 2 GET requests (API + Service layer)
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            json!({
+                "id": 1,
+                "name": "Original Collection",
+                "description": "Original description",
+                "parent_id": null,
+                "location": "/",
+                "namespace": null,
+                "archived": false
+            })
+            .to_string(),
+        )
+        .create();
+
     // Mock the update collection endpoint
-    let _m = server
+    let _put_mock = server
         .mock("PUT", "/api/collection/1")
+        .match_body(mockito::Matcher::Any)
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(
@@ -204,9 +225,18 @@ async fn test_delete_collection() {
         .await
         .expect("Failed to authenticate");
 
-    // Mock the delete collection endpoint (archive it)
-    let _m = server
+    // Mock the archive collection endpoint and GET for response
+    let _archive_mock = server
         .mock("PUT", "/api/collection/1")
+        .match_body(mockito::Matcher::Any)
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(json!({}).to_string()) // Archive returns empty response
+        .create();
+
+    // Mock GET for the archived collection response
+    let _get_mock = server
+        .mock("GET", "/api/collection/1")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(

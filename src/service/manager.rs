@@ -24,7 +24,7 @@ impl ServiceManager {
     pub fn new(http_provider: Arc<dyn HttpProviderSafe>) -> Self {
         // Create auth service (no repository needed, uses http_provider directly)
         let auth_service = Arc::new(HttpAuthService::new(http_provider.clone()));
-        
+
         // Create repositories
         let card_repo: Arc<dyn CardRepository> =
             Arc::new(HttpCardRepository::new(http_provider.clone()));
@@ -50,7 +50,7 @@ impl ServiceManager {
     pub fn auth_service(&self) -> Option<Arc<dyn AuthService>> {
         Some(self.auth_service.clone())
     }
-    
+
     /// Get the card service
     pub fn card_service(&self) -> Option<Arc<dyn CardService>> {
         Some(self.card_service.clone())
@@ -141,6 +141,10 @@ mod tests {
 
             async fn delete_json(&self, _path: &str) -> Result<Value> {
                 Ok(Value::Null)
+            }
+
+            async fn post_binary(&self, _path: &str, _body: Value) -> Result<Vec<u8>> {
+                Ok(b"mock binary data".to_vec())
             }
         }
 

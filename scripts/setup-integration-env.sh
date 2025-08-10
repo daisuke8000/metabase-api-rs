@@ -83,8 +83,10 @@ EOF
 
 # ========== Docker Management ==========
 stop_existing_containers() {
-    print_status "Stopping existing containers..."
-    docker-compose down --remove-orphans 2>/dev/null || true
+    print_status "Stopping existing containers and cleaning up volumes..."
+    docker-compose down --remove-orphans --volumes 2>/dev/null || true
+    # Ensure all volumes are removed for clean start
+    docker volume prune -f 2>/dev/null || true
 }
 
 start_containers() {

@@ -16,11 +16,13 @@ docker stop metabase-app metabase-postgres sample-database 2>/dev/null || true
 echo "🗑️  Removing containers..."
 docker rm -f metabase-app metabase-postgres sample-database 2>/dev/null || true
 
-# Remove volumes (both named and project-prefixed)
+# Remove volumes (both named and project-prefixed) - Force cleanup for integration tests
 echo "💾 Removing volumes..."
 docker volume rm postgres_data 2>/dev/null || true
 docker volume rm ${PROJECT_NAME}_postgres_data 2>/dev/null || true
 docker volume ls | grep -E "(metabase|sample)" | awk '{print $2}' | xargs -r docker volume rm 2>/dev/null || true
+# Remove all anonymous volumes from stopped containers
+docker volume prune -f 2>/dev/null || true
 
 # Remove networks
 echo "🌐 Removing networks..."

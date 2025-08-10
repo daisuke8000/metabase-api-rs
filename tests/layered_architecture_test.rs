@@ -9,13 +9,13 @@ async fn test_card_via_service_layer() {
     let client = ClientBuilder::new("http://localhost:3000")
         .build()
         .expect("Failed to create client");
-    
+
     // This test will verify that MetabaseClient uses ServiceManager
     // Currently it will fail because MetabaseClient doesn't have service_manager
-    
+
     // Act - Try to get a card through the service layer
     let result = client.get_card(1).await;
-    
+
     // Assert - This should work through Service → Repository → Transport layers
     assert!(result.is_ok() || result.is_err()); // Just checking it compiles and runs
 }
@@ -26,10 +26,10 @@ async fn test_card_validation_via_service() {
     let client = ClientBuilder::new("http://localhost:3000")
         .build()
         .expect("Failed to create client");
-    
+
     use metabase_api_rs::core::models::CardType;
     use serde_json::json;
-    
+
     let invalid_card = Card {
         id: None,
         name: "".to_string(), // Invalid: empty name
@@ -59,10 +59,10 @@ async fn test_card_validation_via_service() {
         parameters: vec![],
         parameter_mappings: vec![],
     };
-    
+
     // Act - This should fail validation in the service layer
     let result = client.create_card(invalid_card).await;
-    
+
     // Assert - Should get validation error from service layer
     // Currently will just check http error since service layer isn't integrated yet
     assert!(result.is_err());
@@ -72,10 +72,10 @@ async fn test_card_validation_via_service() {
 fn test_service_manager_exists_in_client() {
     // This test will check if MetabaseClient has service_manager field
     // It will fail initially (RED phase)
-    
+
     // We'll check this at compile time by trying to access the field
     // This is a compile-time test that will fail in RED phase
-    
+
     // Placeholder for now - will be replaced with actual test
     assert!(true, "ServiceManager integration test placeholder");
 }

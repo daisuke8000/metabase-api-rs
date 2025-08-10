@@ -3,15 +3,15 @@
 use crate::api::auth::{AuthManager, Credentials};
 use crate::api::CardListParams;
 use crate::core::error::{Error, Result};
-use crate::core::models::common::{ExportFormat, CardId};
-use crate::service::ServiceManager;
-use crate::transport::http_provider_safe::{HttpProviderSafe, HttpClientAdapter};
+use crate::core::models::common::{CardId, ExportFormat};
 #[cfg(feature = "query-builder")]
 use crate::core::models::mbql::MbqlQuery;
 use crate::core::models::{
     Card, Collection, Dashboard, DatabaseMetadata, DatasetQuery, Field, HealthStatus, MetabaseId,
     NativeQuery, Pagination, QueryResult, SyncResult, User,
 };
+use crate::service::ServiceManager;
+use crate::transport::http_provider_safe::{HttpClientAdapter, HttpProviderSafe};
 use crate::transport::HttpClient;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -45,9 +45,10 @@ impl MetabaseClient {
 
         let http_client = HttpClient::new(&base_url)?;
         let auth_manager = AuthManager::new();
-        
+
         // Create HttpProviderSafe adapter for ServiceManager
-        let http_provider: Arc<dyn HttpProviderSafe> = Arc::new(HttpClientAdapter::new(http_client.clone()));
+        let http_provider: Arc<dyn HttpProviderSafe> =
+            Arc::new(HttpClientAdapter::new(http_client.clone()));
         let service_manager = ServiceManager::new(http_provider);
 
         Ok(Self {
@@ -74,9 +75,10 @@ impl MetabaseClient {
 
         let http_client = HttpClient::new(&base_url)?;
         let auth_manager = AuthManager::new();
-        
+
         // Create HttpProviderSafe adapter for ServiceManager
-        let http_provider: Arc<dyn HttpProviderSafe> = Arc::new(HttpClientAdapter::new(http_client.clone()));
+        let http_provider: Arc<dyn HttpProviderSafe> =
+            Arc::new(HttpClientAdapter::new(http_client.clone()));
         let service_manager = ServiceManager::new(http_provider);
 
         Ok(Self {
@@ -125,7 +127,8 @@ impl MetabaseClient {
     /// Authenticates with the Metabase API
     pub async fn authenticate(&mut self, credentials: Credentials) -> Result<()> {
         // Use ServiceManager for authentication
-        let (session_id, user) = self.service_manager
+        let (session_id, user) = self
+            .service_manager
             .auth_service()
             .ok_or_else(|| Error::Config("Auth service not available".to_string()))?
             .authenticate(credentials)
@@ -144,7 +147,7 @@ impl MetabaseClient {
 
         // Get session ID before clearing
         let session_id = self.auth_manager.get_session_id();
-        
+
         if let Some(id) = session_id {
             // Use ServiceManager for logout
             self.service_manager
@@ -177,9 +180,11 @@ impl MetabaseClient {
             return Err(Error::Authentication("Not authenticated".to_string()));
         }
 
-        let session_id = self.auth_manager.get_session_id()
+        let session_id = self
+            .auth_manager
+            .get_session_id()
             .ok_or_else(|| Error::Authentication("No session available".to_string()))?;
-        
+
         // Use ServiceManager for getting current user
         self.service_manager
             .auth_service()
@@ -202,7 +207,8 @@ impl MetabaseClient {
         }
 
         // Use ServiceManager for layered architecture
-        let card = self.service_manager
+        let card = self
+            .service_manager
             .card_service()
             .ok_or_else(|| Error::Config("Card service not available".to_string()))?
             .get_card(CardId(id as i32))
@@ -221,7 +227,7 @@ impl MetabaseClient {
     /// Lists all cards
     pub async fn list_cards(&self, params: Option<CardListParams>) -> Result<Vec<Card>> {
         use crate::repository::card::CardFilterParams;
-        
+
         // Convert CardListParams to CardFilterParams and PaginationParams
         let filters = params.map(|p| CardFilterParams {
             f: p.f,
@@ -229,7 +235,7 @@ impl MetabaseClient {
             archived: None,
             collection_id: None,
         });
-        
+
         // Use ServiceManager for layered architecture
         self.service_manager
             .card_service()
@@ -246,7 +252,7 @@ impl MetabaseClient {
                 "Authentication required to create card".to_string(),
             ));
         }
-        
+
         // Use ServiceManager for layered architecture with validation
         self.service_manager
             .card_service()
@@ -270,15 +276,41 @@ impl MetabaseClient {
             self.cache.invalidate(&cache_key);
         }
 
-        // Parse updates JSON into Card struct for service layer
-        let card: Card = serde_json::from_value(updates)
-            .map_err(|e| Error::Validation(format!("Invalid card data: {}", e)))?;
-        
-        // Use ServiceManager for layered architecture
-        self.service_manager
+        // First, get the existing card
+        let service = self
+            .service_manager
             .card_service()
-            .ok_or_else(|| Error::Config("Card service not available".to_string()))?
-            .update_card(CardId(id as i32), card)
+            .ok_or_else(|| Error::Config("Card service not available".to_string()))?;
+
+        let mut existing_card = service
+            .get_card(CardId(id as i32))
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))?;
+
+        // Merge the updates into the existing card
+        if let Some(name) = updates.get("name").and_then(|v| v.as_str()) {
+            existing_card.name = name.to_string();
+        }
+        if let Some(description) = updates.get("description") {
+            existing_card.description = if description.is_null() {
+                None
+            } else {
+                description.as_str().map(|s| s.to_string())
+            };
+        }
+        if let Some(display) = updates.get("display").and_then(|v| v.as_str()) {
+            existing_card.display = display.to_string();
+        }
+        if let Some(dataset_query) = updates.get("dataset_query") {
+            existing_card.dataset_query = Some(dataset_query.clone());
+        }
+        if let Some(visualization_settings) = updates.get("visualization_settings") {
+            existing_card.visualization_settings = visualization_settings.clone();
+        }
+
+        // Use ServiceManager for layered architecture
+        service
+            .update_card(CardId(id as i32), existing_card)
             .await
             .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
@@ -310,6 +342,8 @@ impl MetabaseClient {
 
     /// Gets a collection by ID
     pub async fn get_collection(&self, id: MetabaseId) -> Result<Collection> {
+        use crate::core::models::common::CollectionId;
+
         #[cfg(feature = "cache")]
         {
             let cache_key = cache_key("collection", id.0);
@@ -318,8 +352,14 @@ impl MetabaseClient {
             }
         }
 
-        let path = format!("/api/collection/{}", id.0);
-        let collection: Collection = self.http_client.get(&path).await?;
+        // Use ServiceManager for layered architecture
+        let collection = self
+            .service_manager
+            .collection_service()
+            .ok_or_else(|| Error::Config("Collection service not available".to_string()))?
+            .get_collection(CollectionId(id.0 as i32))
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))?;
 
         #[cfg(feature = "cache")]
         {
@@ -332,7 +372,13 @@ impl MetabaseClient {
 
     /// Lists all collections
     pub async fn list_collections(&self) -> Result<Vec<Collection>> {
-        self.http_client.get("/api/collection").await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .collection_service()
+            .ok_or_else(|| Error::Config("Collection service not available".to_string()))?
+            .list_collections(None, None)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Creates a new collection
@@ -342,7 +388,14 @@ impl MetabaseClient {
                 "Authentication required to create collection".to_string(),
             ));
         }
-        self.http_client.post("/api/collection", &collection).await
+
+        // Use ServiceManager for layered architecture with validation
+        self.service_manager
+            .collection_service()
+            .ok_or_else(|| Error::Config("Collection service not available".to_string()))?
+            .create_collection(collection)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Updates an existing collection
@@ -351,6 +404,8 @@ impl MetabaseClient {
         id: MetabaseId,
         updates: serde_json::Value,
     ) -> Result<Collection> {
+        use crate::core::models::common::CollectionId;
+
         if !self.is_authenticated() {
             return Err(Error::Authentication(
                 "Authentication required to update collection".to_string(),
@@ -363,12 +418,57 @@ impl MetabaseClient {
             self.cache.invalidate(&cache_key);
         }
 
-        let path = format!("/api/collection/{}", id.0);
-        self.http_client.put(&path, &updates).await
+        // First, get the existing collection
+        let service = self
+            .service_manager
+            .collection_service()
+            .ok_or_else(|| Error::Config("Collection service not available".to_string()))?;
+
+        let mut existing_collection = service
+            .get_collection(CollectionId(id.0 as i32))
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))?;
+
+        // Merge the updates into the existing collection
+        if let Some(name) = updates.get("name").and_then(|v| v.as_str()) {
+            existing_collection.name = name.to_string();
+        }
+        if let Some(description) = updates.get("description") {
+            existing_collection.description = if description.is_null() {
+                None
+            } else {
+                description.as_str().map(|s| s.to_string())
+            };
+        }
+        if let Some(parent_id) = updates.get("parent_id") {
+            existing_collection.parent_id = if parent_id.is_null() {
+                None
+            } else {
+                parent_id.as_i64().map(|id| id as i32)
+            };
+        }
+        if let Some(color) = updates.get("color") {
+            existing_collection.color = if color.is_null() {
+                None
+            } else {
+                color.as_str().map(|s| s.to_string())
+            };
+        }
+        if let Some(archived) = updates.get("archived").and_then(|v| v.as_bool()) {
+            existing_collection.archived = Some(archived);
+        }
+
+        // Use ServiceManager for layered architecture
+        service
+            .update_collection(CollectionId(id.0 as i32), existing_collection)
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))
     }
 
     /// Archives a collection (Metabase doesn't delete, only archives)
     pub async fn archive_collection(&self, id: MetabaseId) -> Result<Collection> {
+        use crate::core::models::common::CollectionId;
+
         if !self.is_authenticated() {
             return Err(Error::Authentication(
                 "Authentication required to archive collection".to_string(),
@@ -381,9 +481,16 @@ impl MetabaseClient {
             self.cache.invalidate(&cache_key);
         }
 
-        let path = format!("/api/collection/{}", id.0);
-        let updates = json!({ "archived": true });
-        self.http_client.put(&path, &updates).await
+        // Use ServiceManager for layered architecture
+        self.service_manager
+            .collection_service()
+            .ok_or_else(|| Error::Config("Collection service not available".to_string()))?
+            .archive_collection(CollectionId(id.0 as i32))
+            .await
+            .map_err(|e| Error::Config(format!("Service error: {}", e)))?;
+
+        // Get and return the updated collection
+        self.get_collection(id).await
     }
 
     // ==================== Dashboard Operations ====================

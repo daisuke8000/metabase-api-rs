@@ -5,7 +5,7 @@
 use super::traits::{Service, ServiceError, ServiceResult};
 use crate::api::auth::Credentials;
 use crate::core::models::User;
-use crate::transport::http_provider_safe::{HttpProviderSafe, HttpProviderExt};
+use crate::transport::http_provider_safe::{HttpProviderExt, HttpProviderSafe};
 use async_trait::async_trait;
 use secrecy::ExposeSecret;
 use serde::Deserialize;
@@ -17,16 +17,16 @@ use std::sync::Arc;
 pub trait AuthService: Service {
     /// Authenticate with the API
     async fn authenticate(&self, credentials: Credentials) -> ServiceResult<(String, User)>;
-    
+
     /// Logout from the API
     async fn logout(&self, session_id: &str) -> ServiceResult<()>;
-    
+
     /// Get current user information
     async fn get_current_user(&self, session_id: &str) -> ServiceResult<User>;
-    
+
     /// Validate session
     async fn validate_session(&self, session_id: &str) -> ServiceResult<bool>;
-    
+
     /// Health check
     async fn health_check(&self) -> ServiceResult<crate::core::models::HealthStatus>;
 }
@@ -74,14 +74,15 @@ impl AuthService for HttpAuthService {
             user_data: serde_json::Value,
         }
 
-        let response: SessionResponse = self.http_provider
+        let response: SessionResponse = self
+            .http_provider
             .post("/api/session", &request_body)
             .await
             .map_err(ServiceError::from)?;
 
         // Parse user information
         use crate::core::models::common::UserId;
-        
+
         let user = User {
             id: UserId(response.user_data["id"].as_i64().unwrap_or(1)),
             email: response.user_data["email"]
@@ -114,7 +115,7 @@ impl AuthService for HttpAuthService {
 
         Ok((response.id, user))
     }
-    
+
     async fn logout(&self, _session_id: &str) -> ServiceResult<()> {
         self.http_provider
             .delete_json("/api/session")
@@ -122,14 +123,14 @@ impl AuthService for HttpAuthService {
             .map(|_: serde_json::Value| ())
             .map_err(ServiceError::from)
     }
-    
+
     async fn get_current_user(&self, _session_id: &str) -> ServiceResult<User> {
         self.http_provider
             .get("/api/user/current")
             .await
             .map_err(ServiceError::from)
     }
-    
+
     async fn validate_session(&self, session_id: &str) -> ServiceResult<bool> {
         // Try to get current user to validate session
         match self.get_current_user(session_id).await {
@@ -137,7 +138,7 @@ impl AuthService for HttpAuthService {
             Err(_) => Ok(false),
         }
     }
-    
+
     async fn health_check(&self) -> ServiceResult<crate::core::models::HealthStatus> {
         self.http_provider
             .get("/api/health")

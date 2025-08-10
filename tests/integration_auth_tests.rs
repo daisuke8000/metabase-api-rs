@@ -14,7 +14,7 @@ async fn test_email_password_authentication() {
         .expect("Metabase should be running");
 
     // Create client
-    let mut client = ClientBuilder::new(&get_metabase_url())
+    let mut client = ClientBuilder::new(get_metabase_url())
         .build()
         .expect("Failed to build client");
 
@@ -36,7 +36,7 @@ async fn test_authentication_with_invalid_credentials() {
         .await
         .expect("Metabase should be running");
 
-    let mut client = ClientBuilder::new(&get_metabase_url())
+    let mut client = ClientBuilder::new(get_metabase_url())
         .build()
         .expect("Failed to build client");
 
@@ -60,7 +60,7 @@ async fn test_get_current_user() {
         .await
         .expect("Metabase should be running");
 
-    let mut client = ClientBuilder::new(&get_metabase_url())
+    let mut client = ClientBuilder::new(get_metabase_url())
         .build()
         .expect("Failed to build client");
 
@@ -88,7 +88,7 @@ async fn test_logout() {
         .await
         .expect("Metabase should be running");
 
-    let mut client = ClientBuilder::new(&get_metabase_url())
+    let mut client = ClientBuilder::new(get_metabase_url())
         .build()
         .expect("Failed to build client");
 

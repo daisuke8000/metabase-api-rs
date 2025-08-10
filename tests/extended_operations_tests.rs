@@ -46,6 +46,30 @@ async fn test_execute_card_query() {
         .await
         .expect("Failed to authenticate");
 
+    // Mock GET request for card existence check (ServiceManager)
+    let _get_mock = server
+        .mock("GET", "/api/card/1")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            json!({
+                "id": 1,
+                "name": "Test Card",
+                "type": "question",
+                "display": "table",
+                "dataset_query": {
+                    "database": 2,
+                    "type": "query",
+                    "query": {}
+                },
+                "collection_id": null,
+                "created_at": "2023-08-08T10:00:00Z",
+                "updated_at": "2023-08-08T10:00:00Z"
+            })
+            .to_string(),
+        )
+        .create();
+
     // Mock the execute card query endpoint
     let _m = server
         .mock("POST", "/api/card/1/query")
@@ -71,7 +95,11 @@ async fn test_execute_card_query() {
         .create();
 
     let result = client.execute_card_query(1, None).await;
-    assert!(result.is_ok());
+    assert!(
+        result.is_ok(),
+        "Execute card query failed: {:?}",
+        result.err()
+    );
     let query_result = result.unwrap();
     assert_eq!(query_result.status, QueryStatus::Completed);
 }
@@ -90,6 +118,30 @@ async fn test_export_card_query_csv() {
         .await
         .expect("Failed to authenticate");
 
+    // Mock GET request for card existence check (ServiceManager)
+    let _get_mock = server
+        .mock("GET", "/api/card/1")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            json!({
+                "id": 1,
+                "name": "Test Card",
+                "type": "question",
+                "display": "table",
+                "dataset_query": {
+                    "database": 2,
+                    "type": "query",
+                    "query": {}
+                },
+                "collection_id": null,
+                "created_at": "2023-08-08T10:00:00Z",
+                "updated_at": "2023-08-08T10:00:00Z"
+            })
+            .to_string(),
+        )
+        .create();
+
     // Mock the export card query endpoint
     let _m = server
         .mock("POST", "/api/card/1/query/csv")
@@ -99,7 +151,11 @@ async fn test_export_card_query_csv() {
         .create();
 
     let result = client.export_card_query(1, ExportFormat::Csv, None).await;
-    assert!(result.is_ok());
+    assert!(
+        result.is_ok(),
+        "Export card query failed: {:?}",
+        result.err()
+    );
     let csv_data = result.unwrap();
     assert!(!csv_data.is_empty());
     let csv_string = String::from_utf8(csv_data).unwrap();
@@ -119,6 +175,30 @@ async fn test_execute_card_pivot_query() {
         ))
         .await
         .expect("Failed to authenticate");
+
+    // Mock GET request for card existence check (ServiceManager)
+    let _get_mock = server
+        .mock("GET", "/api/card/1")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            json!({
+                "id": 1,
+                "name": "Test Card",
+                "type": "question",
+                "display": "table",
+                "dataset_query": {
+                    "database": 2,
+                    "type": "query",
+                    "query": {}
+                },
+                "collection_id": null,
+                "created_at": "2023-08-08T10:00:00Z",
+                "updated_at": "2023-08-08T10:00:00Z"
+            })
+            .to_string(),
+        )
+        .create();
 
     // Mock the pivot query endpoint
     let _m = server

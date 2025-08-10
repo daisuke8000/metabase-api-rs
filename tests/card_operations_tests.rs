@@ -178,9 +178,10 @@ async fn test_update_card() {
         .await
         .expect("Failed to authenticate");
 
-    // Mock the update card endpoint
+    // Mock the update card endpoint with Any matcher to accept any request body
     let _m = server
         .mock("PUT", "/api/card/1")
+        .match_body(mockito::Matcher::Any)
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(
@@ -200,13 +201,64 @@ async fn test_update_card() {
         )
         .create();
 
+    // Mock GET request for existing card (API layer fetches for merge)
+    let _get_mock = server
+        .mock("GET", "/api/card/1")
+        .expect(2) // Expect 2 GET requests (API + Service layer)
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            json!({
+                "id": 1,
+                "name": "Original Card",
+                "type": "question",
+                "display": "table",
+                "dataset_query": {
+                    "database": 2,
+                    "type": "query",
+                    "query": {}
+                },
+                "collection_id": null,
+                "created_at": "2023-08-08T10:00:00Z",
+                "updated_at": "2023-08-08T10:00:00Z"
+            })
+            .to_string(),
+        )
+        .create();
+
+    // Mock PUT request for update
+    let _put_mock = server
+        .mock("PUT", "/api/card/1")
+        .match_body(mockito::Matcher::Any)
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            json!({
+                "id": 1,
+                "name": "Updated Card",
+                "type": "question",
+                "display": "bar",
+                "dataset_query": {
+                    "database": 2,
+                    "type": "query",
+                    "query": {}
+                },
+                "collection_id": null,
+                "created_at": "2023-08-08T10:00:00Z",
+                "updated_at": "2023-08-08T11:00:00Z"
+            })
+            .to_string(),
+        )
+        .create();
+
     let updates = json!({
-        "name": "Updated Card"
+        "name": "Updated Card",
+        "display": "bar"
     });
 
-    let updated = client.update_card(1, updates).await;
-    assert!(updated.is_ok());
-    let updated = updated.unwrap();
+    let result = client.update_card(1, updates).await;
+    assert!(result.is_ok());
+    let updated = result.unwrap();
     assert_eq!(updated.name(), "Updated Card");
 }
 
@@ -224,14 +276,39 @@ async fn test_delete_card() {
         .await
         .expect("Failed to authenticate");
 
-    // Mock the delete card endpoint
-    let _m = server
+    // Mock GET request for card existence check (ServiceManager)
+    let _get_mock = server
+        .mock("GET", "/api/card/1")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            json!({
+                "id": 1,
+                "name": "Test Card",
+                "type": "question",
+                "display": "table",
+                "dataset_query": {
+                    "database": 2,
+                    "type": "query",
+                    "query": {}
+                },
+                "collection_id": null,
+                "created_at": "2023-08-08T10:00:00Z",
+                "updated_at": "2023-08-08T10:00:00Z"
+            })
+            .to_string(),
+        )
+        .create();
+
+    // Mock the delete card endpoint with empty response
+    let _delete_mock = server
         .mock("DELETE", "/api/card/1")
         .with_status(204)
+        .with_body("") // Empty response for DELETE operation
         .create();
 
     let result = client.delete_card(1).await;
-    assert!(result.is_ok());
+    assert!(result.is_ok(), "Delete card failed: {:?}", result.err());
 }
 
 #[tokio::test]

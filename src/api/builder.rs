@@ -100,13 +100,14 @@ impl ClientBuilder {
         };
 
         // Create HttpProviderSafe adapter for ServiceManager
-        use crate::transport::http_provider_safe::{HttpProviderSafe, HttpClientAdapter};
         use crate::service::ServiceManager;
+        use crate::transport::http_provider_safe::{HttpClientAdapter, HttpProviderSafe};
         use std::sync::Arc;
-        
-        let http_provider: Arc<dyn HttpProviderSafe> = Arc::new(HttpClientAdapter::new(http_client.clone()));
+
+        let http_provider: Arc<dyn HttpProviderSafe> =
+            Arc::new(HttpClientAdapter::new(http_client.clone()));
         let service_manager = ServiceManager::new(http_provider);
-        
+
         Ok(MetabaseClient {
             http_client,
             auth_manager,

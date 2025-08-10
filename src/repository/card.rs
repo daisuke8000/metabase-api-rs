@@ -69,14 +69,14 @@ pub trait CardRepository: Repository<Entity = Card, Id = CardId> + Send + Sync {
 
     /// Copy a card
     async fn copy(&self, id: &CardId, new_name: &str) -> RepositoryResult<Card>;
-    
+
     /// Execute a card's query
     async fn execute_query(
         &self,
         id: &CardId,
         parameters: Option<serde_json::Value>,
     ) -> RepositoryResult<crate::core::models::QueryResult>;
-    
+
     /// Export card query results
     async fn export_query(
         &self,
@@ -84,7 +84,7 @@ pub trait CardRepository: Repository<Entity = Card, Id = CardId> + Send + Sync {
         format: crate::core::models::common::ExportFormat,
         parameters: Option<serde_json::Value>,
     ) -> RepositoryResult<Vec<u8>>;
-    
+
     /// Execute a pivot query for a card
     async fn execute_pivot_query(
         &self,
@@ -193,7 +193,7 @@ impl CardRepository for HttpCardRepository {
         filters: Option<CardFilterParams>,
     ) -> RepositoryResult<Vec<Card>> {
         let mut params = Vec::new();
-        
+
         if let Some(p) = pagination {
             if let Some(page) = p.page {
                 params.push(format!("page={}", page));
@@ -205,7 +205,7 @@ impl CardRepository for HttpCardRepository {
                 params.push(format!("offset={}", offset));
             }
         }
-        
+
         if let Some(f) = filters {
             if let Some(f_param) = f.f {
                 params.push(format!("f={}", f_param));
@@ -220,13 +220,13 @@ impl CardRepository for HttpCardRepository {
                 params.push(format!("collection_id={}", collection_id));
             }
         }
-        
+
         let path = if params.is_empty() {
             "/api/card".to_string()
         } else {
             format!("/api/card?{}", params.join("&"))
         };
-        
+
         self.http_provider.get(&path).await.map_err(|e| e.into())
     }
 
@@ -277,7 +277,7 @@ impl CardRepository for HttpCardRepository {
             .await
             .map_err(|e| e.into())
     }
-    
+
     async fn execute_query(
         &self,
         id: &CardId,
@@ -294,7 +294,7 @@ impl CardRepository for HttpCardRepository {
             .await
             .map_err(|e| e.into())
     }
-    
+
     async fn export_query(
         &self,
         id: &CardId,
@@ -307,15 +307,13 @@ impl CardRepository for HttpCardRepository {
         } else {
             serde_json::json!({})
         };
-        // Note: This needs post_binary method in HttpProviderSafe
-        // For now, return empty vector as placeholder
-        let _result: serde_json::Value = self.http_provider
-            .post(&path, &request)
+        // Use post_binary for export operations that return binary data (CSV, XLSX, etc.)
+        self.http_provider
+            .post_binary(&path, request)
             .await
-            .map_err(|e| RepositoryError::from(e))?;
-        Ok(Vec::new())
+            .map_err(RepositoryError::from)
     }
-    
+
     async fn execute_pivot_query(
         &self,
         id: &CardId,
@@ -550,7 +548,7 @@ impl CardRepository for MockCardRepository {
             )))
         }
     }
-    
+
     async fn execute_query(
         &self,
         id: &CardId,
@@ -559,7 +557,7 @@ impl CardRepository for MockCardRepository {
         if self.should_fail {
             return Err(RepositoryError::Other("Mock failure".to_string()));
         }
-        
+
         // Check if card exists
         let cards = self.cards.read().await;
         if !cards.iter().any(|c| c.id == Some(*id)) {
@@ -568,11 +566,11 @@ impl CardRepository for MockCardRepository {
                 id.0
             )));
         }
-        
+
         // Return mock query result
-        use crate::core::models::query::{QueryData, QueryStatus, Column};
         use crate::core::models::common::MetabaseId;
-        
+        use crate::core::models::query::{Column, QueryData, QueryStatus};
+
         Ok(crate::core::models::QueryResult {
             data: QueryData {
                 rows: vec![vec![serde_json::json!(1), serde_json::json!("test")]],
@@ -606,7 +604,7 @@ impl CardRepository for MockCardRepository {
             json_query: serde_json::json!({}),
         })
     }
-    
+
     async fn export_query(
         &self,
         id: &CardId,
@@ -616,7 +614,7 @@ impl CardRepository for MockCardRepository {
         if self.should_fail {
             return Err(RepositoryError::Other("Mock failure".to_string()));
         }
-        
+
         // Check if card exists
         let cards = self.cards.read().await;
         if !cards.iter().any(|c| c.id == Some(*id)) {
@@ -625,11 +623,11 @@ impl CardRepository for MockCardRepository {
                 id.0
             )));
         }
-        
-        // Return mock export data
-        Ok(b"mock export data".to_vec())
+
+        // Return mock CSV export data
+        Ok(b"id,name\n1,Test\n2,Data".to_vec())
     }
-    
+
     async fn execute_pivot_query(
         &self,
         id: &CardId,
@@ -638,7 +636,7 @@ impl CardRepository for MockCardRepository {
         if self.should_fail {
             return Err(RepositoryError::Other("Mock failure".to_string()));
         }
-        
+
         // Check if card exists
         let cards = self.cards.read().await;
         if !cards.iter().any(|c| c.id == Some(*id)) {
@@ -647,11 +645,11 @@ impl CardRepository for MockCardRepository {
                 id.0
             )));
         }
-        
+
         // Return mock pivot query result
-        use crate::core::models::query::{QueryData, QueryStatus, Column};
         use crate::core::models::common::MetabaseId;
-        
+        use crate::core::models::query::{Column, QueryData, QueryStatus};
+
         Ok(crate::core::models::QueryResult {
             data: QueryData {
                 rows: vec![vec![serde_json::json!("category1"), serde_json::json!(100)]],

@@ -3,38 +3,30 @@
 //! These tests verify the basic functionality works against a real Metabase instance.
 //! Run with: cargo test --test simple_integration_test -- --ignored
 
+use integration_common::{get_metabase_url, get_test_email, get_test_password, wait_for_metabase};
 use metabase_api_rs::api::Credentials;
 use metabase_api_rs::core::models::MetabaseId;
 use metabase_api_rs::ClientBuilder;
 use std::time::{Duration, Instant};
 
+mod integration_common;
+
 /// Load test environment configuration
+#[allow(dead_code)]
 fn load_test_env() {
     dotenvy::from_filename(".env.test").ok();
-}
-
-/// Get the Metabase URL from environment or use default
-fn get_metabase_url() -> String {
-    std::env::var("METABASE_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
-}
-
-/// Get test email from environment
-fn get_test_email() -> String {
-    std::env::var("METABASE_EMAIL").unwrap_or_else(|_| "test-admin@metabase-test.local".to_string())
-}
-
-/// Get test password from environment
-fn get_test_password() -> String {
-    std::env::var("METABASE_PASSWORD").unwrap_or_else(|_| "TestPassword123!".to_string())
 }
 
 /// Test basic authentication workflow
 #[tokio::test]
 #[ignore] // Requires running Metabase instance
 async fn test_basic_authentication() {
-    load_test_env();
+    // Ensure Metabase is ready before testing
+    wait_for_metabase(30)
+        .await
+        .expect("Metabase should be running");
 
-    let mut client = ClientBuilder::new(&get_metabase_url())
+    let mut client = ClientBuilder::new(get_metabase_url())
         .timeout(Duration::from_secs(30))
         .build()
         .expect("Failed to build client");
@@ -69,9 +61,12 @@ async fn test_basic_authentication() {
 #[tokio::test]
 #[ignore] // Requires running Metabase instance
 async fn test_simple_sql_execution() {
-    load_test_env();
+    // Ensure Metabase is ready before testing
+    wait_for_metabase(30)
+        .await
+        .expect("Metabase should be running");
 
-    let mut client = ClientBuilder::new(&get_metabase_url())
+    let mut client = ClientBuilder::new(get_metabase_url())
         .timeout(Duration::from_secs(30))
         .build()
         .expect("Failed to build client");
@@ -120,9 +115,12 @@ async fn test_simple_sql_execution() {
 #[tokio::test]
 #[ignore] // Requires running Metabase instance
 async fn test_parameterized_sql_execution() {
-    load_test_env();
+    // Ensure Metabase is ready before testing
+    wait_for_metabase(30)
+        .await
+        .expect("Metabase should be running");
 
-    let mut client = ClientBuilder::new(&get_metabase_url())
+    let mut client = ClientBuilder::new(get_metabase_url())
         .timeout(Duration::from_secs(30))
         .build()
         .expect("Failed to build client");
@@ -171,9 +169,12 @@ async fn test_parameterized_sql_execution() {
 #[tokio::test]
 #[ignore] // Requires running Metabase instance
 async fn test_session_management() {
-    load_test_env();
+    // Ensure Metabase is ready before testing
+    wait_for_metabase(30)
+        .await
+        .expect("Metabase should be running");
 
-    let mut client = ClientBuilder::new(&get_metabase_url())
+    let mut client = ClientBuilder::new(get_metabase_url())
         .timeout(Duration::from_secs(30))
         .build()
         .expect("Failed to build client");
@@ -222,11 +223,14 @@ async fn test_session_management() {
 #[tokio::test]
 #[ignore] // Requires running Metabase instance
 async fn test_performance_baseline() {
-    load_test_env();
+    // Ensure Metabase is ready before testing
+    wait_for_metabase(30)
+        .await
+        .expect("Metabase should be running");
 
     println!("\n=== Performance Baseline Test ===");
 
-    let mut client = ClientBuilder::new(&get_metabase_url())
+    let mut client = ClientBuilder::new(get_metabase_url())
         .timeout(Duration::from_secs(30))
         .build()
         .expect("Failed to build client");
