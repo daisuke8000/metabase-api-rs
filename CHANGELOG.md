@@ -5,7 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [released]
+## [0.1.0-beta.1] - 2025-08-10
+
+### Fixed
+- Fixed authentication API usage in benchmarks and examples
+- Corrected `Credentials::EmailPassword` to `Credentials::email_password()` method
+- Fixed `MetabaseId` import path in crud_simple.rs example
+
+### Changed
+
+- Updated README.md security statement to reflect resolved vulnerabilities
+- Improved architecture test coverage with consolidated test file
+- Enhanced performance benchmarking with realistic scenarios
+
+
 ## [0.1.0-alpha.3] - 2025-08-09
 
 ### Changed

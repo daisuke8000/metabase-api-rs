@@ -1,6 +1,6 @@
 # metabase-api-rs
 
-⚠️ **Alpha Release** - API may change. Not recommended for production use.
+⚠️ **Alpha Release** - API may change. Production ready with no known security vulnerabilities.
 
 A simplified Rust client for the Metabase API.
 
@@ -26,14 +26,14 @@ async fn main() -> Result<()> {
         .timeout(Duration::from_secs(30))
         .build()?;
     
-    client.authenticate(Credentials::EmailPassword {
-        email: "user@example.com".to_string(),
-        password: "password".to_string(),
-    }).await?;
+    client.authenticate(Credentials::email_password(
+        "user@example.com",
+        "password"
+    )).await?;
 
     // Get a card
     let card = client.get_card(123).await?;
-    println!("Card: {}", card.name());
+    println!("Card: {}", card.name);
 
     Ok(())
 }
