@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-beta.2] - 2025-08-10
+
+### Fixed
+- Fixed critical bug in `execute_raw_query` method that was returning empty results
+- Query execution now properly parses HTTP response data and returns actual query results
+- Fixed `execute_dataset_query` functionality in architecture tests
+
+### Changed
+- Improved response parsing in query repository layer
+- Enhanced error handling for malformed API responses
+- Code optimization to comply with Clippy lints (removed redundant closures and improved iterator usage)
+
 ## [0.1.0-beta.1] - 2025-08-10
 
 ### Fixed

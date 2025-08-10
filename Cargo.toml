@@ -1,6 +1,6 @@
 [package]
 name = "metabase-api-rs"
-version = "0.1.0-beta.1"
+version = "0.1.0-beta.2"
 edition = "2021"
 authors = ["daisuke8000 <daisuke12108000@gmail.com>"]
 description = "A simplified Rust client for the Metabase API (Beta release - feature complete)"

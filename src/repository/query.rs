@@ -219,26 +219,65 @@ impl QueryRepository for HttpQueryRepository {
         &self,
         query: serde_json::Value,
     ) -> RepositoryResult<crate::core::models::query::QueryResult> {
-        let _response: serde_json::Value = self
+        let response: serde_json::Value = self
             .http_provider
             .post("/api/dataset", &query)
             .await
             .map_err(RepositoryError::from)?;
 
+        // Parse the response data
+        let data = response
+            .get("data")
+            .ok_or_else(|| RepositoryError::Other("Response missing 'data' field".to_string()))?;
+
+        // Extract rows and columns
+        let rows: Vec<Vec<serde_json::Value>> = data
+            .get("rows")
+            .and_then(|r| r.as_array())
+            .unwrap_or(&Vec::new())
+            .iter()
+            .map(|row| row.as_array().unwrap_or(&Vec::new()).to_vec())
+            .collect();
+
+        let cols = data
+            .get("cols")
+            .and_then(|c| c.as_array())
+            .unwrap_or(&Vec::new())
+            .iter()
+            .filter_map(|col| {
+                let name = col.get("name")?.as_str()?.to_string();
+                let base_type = col.get("base_type")?.as_str()?.to_string();
+                Some(crate::core::models::query::Column {
+                    name: name.clone(),
+                    display_name: name,
+                    base_type,
+                    effective_type: None,
+                    semantic_type: None,
+                    field_ref: None,
+                })
+            })
+            .collect();
+
+        let row_count = rows.len() as i32;
+
         // Parse response into QueryResult
         Ok(crate::core::models::query::QueryResult {
             data: crate::core::models::query::QueryData {
-                cols: Vec::new(),
-                rows: Vec::new(),
+                cols,
+                rows,
                 native_form: None,
                 insights: Vec::new(),
             },
-            database_id: crate::core::models::common::MetabaseId(1),
+            database_id: query
+                .get("database")
+                .and_then(|d| d.as_i64())
+                .map(crate::core::models::common::MetabaseId)
+                .unwrap_or(crate::core::models::common::MetabaseId(1)),
             started_at: chrono::Utc::now(),
             finished_at: Some(chrono::Utc::now()),
             json_query: query,
             status: crate::core::models::query::QueryStatus::Completed,
-            row_count: Some(0),
+            row_count: Some(row_count),
             running_time: Some(0),
         })
     }
