@@ -351,7 +351,7 @@ pub fn cache_key_with_params(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::models::{Card, MetabaseId};
+    use crate::core::models::Card;
 
     #[test]
     fn test_cache_key_generation() {

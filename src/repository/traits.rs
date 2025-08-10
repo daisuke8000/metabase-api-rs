@@ -90,6 +90,21 @@ impl PaginationParams {
         self.offset = Some(offset);
         self
     }
+
+    /// Convert to query parameters
+    pub fn to_query_params(&self) -> Vec<(String, String)> {
+        let mut params = vec![];
+        if let Some(page) = self.page {
+            params.push(("page".to_string(), page.to_string()));
+        }
+        if let Some(limit) = self.limit {
+            params.push(("limit".to_string(), limit.to_string()));
+        }
+        if let Some(offset) = self.offset {
+            params.push(("offset".to_string(), offset.to_string()));
+        }
+        params
+    }
 }
 
 /// Sort order

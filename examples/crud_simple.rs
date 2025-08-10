@@ -2,7 +2,7 @@
 //!
 //! This example demonstrates basic Create, Read, Update, and Delete operations
 
-use metabase_api_rs::{api::Credentials, models::MetabaseId, ClientBuilder, Result};
+use metabase_api_rs::{api::Credentials, core::models::MetabaseId, ClientBuilder, Result};
 use serde_json::json;
 
 #[tokio::main]

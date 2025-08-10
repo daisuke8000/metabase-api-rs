@@ -99,12 +99,14 @@ impl MbqlQuery {
     }
 
     /// Convert to a dataset query format
-    pub fn to_dataset_query(&self, database_id: MetabaseId) -> Value {
-        json!({
-            "database": database_id,
-            "type": "query",
-            "query": self.to_json().unwrap_or_default()
-        })
+    pub fn to_dataset_query(&self, database_id: MetabaseId) -> crate::core::models::DatasetQuery {
+        crate::core::models::DatasetQuery {
+            database: database_id,
+            query_type: "query".to_string(),
+            query: self.to_json().unwrap_or_default(),
+            parameters: None,
+            constraints: None,
+        }
     }
 }
 

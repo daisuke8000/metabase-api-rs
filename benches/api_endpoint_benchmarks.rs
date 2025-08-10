@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use metabase_api_rs::{api::Credentials, ClientBuilder};
+use metabase_api_rs::api::{ClientBuilder, Credentials};
 use serde_json::json;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -22,10 +22,8 @@ fn bench_authentication(c: &mut Criterion) {
                         .unwrap();
 
                     // In real scenario, this would authenticate against actual server
-                    let credentials = Credentials::EmailPassword {
-                        email: "test@example.com".to_string(),
-                        password: "test_password".to_string().into(),
-                    };
+                    let credentials =
+                        Credentials::email_password("test@example.com", "test_password");
 
                     // Simulate authentication delay
                     tokio::time::sleep(Duration::from_millis(50)).await;
@@ -41,9 +39,7 @@ fn bench_authentication(c: &mut Criterion) {
             rt.block_on(async {
                 let start = std::time::Instant::now();
                 for _ in 0..iters {
-                    let credentials = Credentials::ApiKey {
-                        key: "test_api_key".to_string().into(),
-                    };
+                    let credentials = Credentials::new_api_key("test_api_key");
 
                     // API key auth is typically faster
                     tokio::time::sleep(Duration::from_millis(10)).await;

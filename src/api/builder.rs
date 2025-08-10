@@ -99,10 +99,19 @@ impl ClientBuilder {
             crate::cache::CacheLayer::new(config)
         };
 
+        // Create HttpProviderSafe adapter for ServiceManager
+        use crate::service::ServiceManager;
+        use crate::transport::http_provider_safe::{HttpClientAdapter, HttpProviderSafe};
+        use std::sync::Arc;
+
+        let http_provider: Arc<dyn HttpProviderSafe> =
+            Arc::new(HttpClientAdapter::new(http_client));
+        let service_manager = ServiceManager::new(http_provider);
+
         Ok(MetabaseClient {
-            http_client,
             auth_manager,
             base_url: self.base_url,
+            service_manager,
             #[cfg(feature = "cache")]
             cache,
         })

@@ -77,6 +77,11 @@ impl AuthManager {
             .and_then(|token| token.get_if_valid())
     }
 
+    /// Gets the session ID (same as session token)
+    pub fn get_session_id(&self) -> Option<String> {
+        self.session_token().map(|s| s.to_string())
+    }
+
     /// Gets the current user information
     pub fn current_user(&self) -> Option<&User> {
         self.current_user.as_ref()

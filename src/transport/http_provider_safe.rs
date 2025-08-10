@@ -23,6 +23,9 @@ pub trait HttpProviderSafe: Send + Sync {
 
     /// Execute a DELETE request
     async fn delete_json(&self, path: &str) -> Result<Value>;
+
+    /// Execute a POST request returning binary data
+    async fn post_binary(&self, path: &str, body: Value) -> Result<Vec<u8>>;
 }
 
 /// Extension trait for typed operations
@@ -107,6 +110,10 @@ impl HttpProviderSafe for HttpClientAdapter {
 
     async fn delete_json(&self, path: &str) -> Result<Value> {
         self.client.delete(path).await?;
-        Ok(serde_json::json!({}))
+        Ok(serde_json::json!(null)) // Use null for unit type deserialization
+    }
+
+    async fn post_binary(&self, path: &str, body: Value) -> Result<Vec<u8>> {
+        self.client.post_binary(path, &body).await
     }
 }
