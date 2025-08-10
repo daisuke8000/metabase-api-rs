@@ -1,6 +1,6 @@
 # metabase-api-rs
 
-⚠️ **Alpha Release** - API may change. Production ready with no known security vulnerabilities.
+⚠️ **Beta Release** - API may change. Production ready with no known security vulnerabilities.
 
 A simplified Rust client for the Metabase API.
 
@@ -8,7 +8,7 @@ A simplified Rust client for the Metabase API.
 
 ```toml
 [dependencies]
-metabase-api-rs = "0.1.0-alpha.3"
+metabase-api-rs = "0.1.0-beta.3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 serde_json = "1.0"
 ```
